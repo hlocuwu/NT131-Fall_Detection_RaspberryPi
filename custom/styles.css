@@ -60,7 +60,7 @@ header {
     flex-direction: column;
     align-items: center;
     gap: 14px;
-    margin-top: 200px;
+    margin-top: 100px;
 }
 
 .trigger-frame img {
@@ -80,6 +80,10 @@ header {
     cursor: pointer;
     transition: background-color 0.3s ease;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
 }
 
 .trigger-button:hover {
