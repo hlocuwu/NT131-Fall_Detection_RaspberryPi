@@ -69,15 +69,21 @@ header {
 }
 
 .trigger-button {
-    padding: 10px 20px;
-    background-color: rgb(0, 102, 255);
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background-color: #ff4d4d;
     color: white;
     border: none;
-    border-radius: 6px;
-    cursor: pointer;
+    font-size: 20px;
     font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .trigger-button:hover {
-    background-color: rgb(0, 85, 212);
+    background-color: #e60000;
 }
+
+
