@@ -90,4 +90,16 @@ header {
     background-color: #e60000;
 }
 
+.chart-container {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.chart-box {
+    flex: 1;
+    min-width: 400px;
+    max-width: 48%;
+}
 
