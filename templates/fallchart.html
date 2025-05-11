@@ -5,6 +5,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Thống kê té ngã</title>
     <link rel="stylesheet" href="../custom/styles.css">
+    <style>
+        /* Thêm CSS để kiểm soát kích thước chart */
+        .chart-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+            height: 100%;
+            overflow: hidden; /* Ngăn scroll nếu nội dung vượt quá */
+        }
+        
+        .chart-box {
+            width: 100%;
+            height: 300px; /* Chiều cao cố định cho mỗi chart */
+            position: relative;
+            margin-bottom: 20px;
+        }
+        
+        canvas {
+            max-height: 100%; /* Đảm bảo canvas không vượt quá box */
+            width: 100% !important;
+            height: 250px !important; /* Chiều cao cố định cho canvas */
+        }
+        
+        /* Responsive adjustment */
+        @media (min-width: 768px) {
+            .chart-container {
+                flex-direction: row;
+            }
+            
+            .chart-box {
+                width: 48%;
+            }
+        }
+    </style>
 </head>
 <body>
 
@@ -23,11 +58,11 @@
         <div class="chart-container">
             <div class="chart-box">
                 <h3>Thống kê theo giờ (Hôm nay: {{ current_date }})</h3>
-                    <canvas id="hourlyChart" height="300"></canvas>
+                <canvas id="hourlyChart"></canvas>
             </div>
             <div class="chart-box">
                 <h3>Thống kê theo ngày (Tháng hiện tại)</h3>
-                    <canvas id="dailyChart" height="300"></canvas>
+                <canvas id="dailyChart"></canvas>
             </div>
         </div>
     </div>
@@ -78,6 +113,7 @@
                     },
                     options: {
                         responsive: true,
+                        maintainAspectRatio: false, // Cho phép điều chỉnh tỷ lệ
                         plugins: {
                             legend: { display: false },
                             title: { 
@@ -122,6 +158,7 @@
                     },
                     options: {
                         responsive: true,
+                        maintainAspectRatio: false, // Cho phép điều chỉnh tỷ lệ
                         plugins: {
                             legend: { display: false },
                             title: { 
@@ -135,6 +172,10 @@
                                 title: {
                                     display: true,
                                     text: 'Số lần té ngã'
+                                },
+                                ticks: {
+                                    stepSize: 1,
+                                    precision: 0
                                 }
                             },
                             x: {
