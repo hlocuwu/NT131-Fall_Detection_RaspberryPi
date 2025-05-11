@@ -52,15 +52,15 @@ header {
 .main-layout {
     display: flex;
     align-items: flex-start;
-    gap: 20px;
+    gap: 40px;
 }
 
 .trigger-panel {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 15px;
-    margin-top: 50px;
+    gap: 14px;
+    margin-top: 200px;
 }
 
 .trigger-frame img {
