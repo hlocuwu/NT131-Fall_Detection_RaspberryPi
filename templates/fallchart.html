@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thống kê té ngã</title>
+    <link rel="stylesheet" href="../custom/styles.css">
+</head>
+<body>
+
+<header>
+    <div class="logo" onclick="location.href='/'">Nhóm 04</div>
+    <div class="buttons">
+        <button class="button active" onclick="location.href='/camera'">Giám sát</button>
+        <button class="button" onclick="location.href='/chart'">Hệ thống</button>
+        <button class="button" onclick="location.href='/fallchart'">Thống kê té ngã</button>
+    </div>
+</header>
+
+<div class="content">
+    <div class="tab">
+        <h2>Thống kê té ngã</h2>
+        
+        <div class="chart-container">
+            <h3>Thống kê theo giờ (Hôm nay: {{ current_date }})</h3>
+            <canvas id="hourlyChart" height="300"></canvas>
+        </div>
+        
+        <div class="chart-container">
+            <h3>Thống kê theo ngày (Tháng hiện tại)</h3>
+            <canvas id="dailyChart" height="300"></canvas>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Lấy ngày hiện tại để hiển thị
+        const now = new Date();
+        const currentDate = now.toLocaleDateString();
+        document.querySelector('h3').innerHTML = `Thống kê theo giờ (Hôm nay: ${currentDate})`;
+        
+        let hourlyChart, dailyChart;
+        
+        function updateCharts() {
+            fetch('/fall_stats')
+                .then(res => res.json())
+                .then(data => {
+                    updateChart(hourlyChart, data.hourly);
+                    updateChart(dailyChart, data.daily);
+                });
+        }
+        
+        function updateChart(chart, dataset) {
+            const labels = Object.keys(dataset);
+            const values = labels.map(key => dataset[key]);
+        
+            chart.data.labels = labels;
+            chart.data.datasets[0].data = values;
+            chart.update();
+        }
+        
+        // Khởi tạo biểu đồ
+        fetch('/fall_stats')
+            .then(res => res.json())
+            .then(data => {
+                // Biểu đồ theo giờ
+                hourlyChart = new Chart(document.getElementById('hourlyChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(data.hourly),
+                        datasets: [{
+                            label: 'Số lần té ngã',
+                            data: Object.values(data.hourly),
+                            backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { display: false },
+                            title: { 
+                                display: true, 
+                                text: 'Số lần té ngã theo giờ' 
+                            }
+                        },
+                        scales: {
+                            y: { 
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Số lần té ngã'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Giờ trong ngày'
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                // Biểu đồ theo ngày
+                dailyChart = new Chart(document.getElementById('dailyChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(data.daily),
+                        datasets: [{
+                            label: 'Số lần té ngã',
+                            data: Object.values(data.daily),
+                            backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { display: false },
+                            title: { 
+                                display: true, 
+                                text: 'Số lần té ngã theo ngày' 
+                            }
+                        },
+                        scales: {
+                            y: { 
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Số lần té ngã'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Ngày trong tháng'
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                // Cập nhật mỗi phút
+                setInterval(updateCharts, 60000);
+            });
+    </script>            
+</div>
+</body>
+</html>

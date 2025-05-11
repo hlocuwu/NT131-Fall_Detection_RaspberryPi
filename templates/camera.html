@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giám sát</title>
+    <link rel="stylesheet" href="../custom/styles.css">
+</head>
+<body>
+
+<header>
+    <div class="logo" onclick="location.href='/'">Nhóm 04</div>
+    <div class="buttons">
+        <button class="button active" onclick="location.href='/camera'">Giám sát</button>
+        <button class="button" onclick="location.href='/chart'">Hệ thống</button>
+        <button class="button" onclick="location.href='/fallchart'">Thống kê té ngã</button>
+    </div>
+</header>
+
+<div class="content">
+    <h2>Camera Stream</h2>
+    <div class="main-layout">
+        <div class="main-stream">
+            <img src="/video_feed" alt="Video Stream" width="950" height="550" style="border: 5px solid rgb(255, 0, 0);">
+        </div>
+
+        <div class="trigger-panel">
+            <div class="trigger-frame">
+                <img id="trigger-image" src="/trigger_feed" alt="Trigger Frame" width="350" height="250">
+            </div>
+            <button class="trigger-button" onclick="resetTrigger()">RESET</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function resetTrigger() {
+        const img = document.getElementById('trigger-image');
+        img.src = '/trigger_feed?' + new Date().getTime(); // Force reload to blank image
+    }
+
+    setInterval(() => {
+        // Không cần refresh liên tục, ảnh trigger sẽ tự động cập nhật khi có té ngã
+    }, 1000);
+</script>
+
+</body>
+</html>
