@@ -3,25 +3,132 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home Page</title>
+    <title>Fall Detection System</title>
     <link rel="stylesheet" href="../custom/styles.css">
+    <style>
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            background-color: white;
+            text-align: center;
+        }
+        
+        .login-container h1 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .login-form input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        
+        .login-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+        
+        .login-button:hover {
+            background-color: #45a049;
+        }
+        
+        .error-message {
+            color: red;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        /* Initially hide the navigation buttons */
+        .buttons {
+            display: none;
+        }
+    </style>
 </head>
 <body>
 
 <header>
     <div class="logo" onclick="location.href='/'">Nhóm 04</div>
-    <div class="buttons">
-        <button class="button active" onclick="location.href='/camera'">Giám sát</button>
+    <div class="buttons" id="navButtons">
+        <button class="button" onclick="location.href='/camera'">Giám sát</button>
         <button class="button" onclick="location.href='/chart'">Hệ thống</button>
         <button class="button" onclick="location.href='/fallchart'">Thống kê té ngã</button>
     </div>
 </header>
 
 <div class="content">
-    <div class="tab">
-        Welcome to the home page! Click a button to see more content.
+    <!-- Login Form (initially visible) -->
+    <div class="login-container" id="loginForm">
+        <h1>Hệ thống phát hiện té ngã</h1>
+        <p>Vui lòng đăng nhập để truy cập hệ thống</p>
+        
+        <div class="error-message" id="errorMessage">
+            Tên đăng nhập hoặc mật khẩu không đúng!
+        </div>
+        
+        <div class="login-form">
+            <input type="text" id="username" placeholder="Tên đăng nhập" required>
+            <input type="password" id="password" placeholder="Mật khẩu" required>
+            <button class="login-button" onclick="attemptLogin()">Đăng nhập</button>
+        </div>
+    </div>
+    
+    <!-- Welcome message (initially hidden) -->
+    <div class="tab hidden" id="welcomeMessage">
+        <h2>Chào mừng đến với hệ thống phát hiện té ngã!</h2>
+        <p>Sử dụng các nút phía trên để điều hướng đến các chức năng của hệ thống.</p>
     </div>
 </div>
+
+<script>
+    // Check if user is already logged in (using session storage)
+    window.onload = function() {
+        const isLoggedIn = sessionStorage.getItem('isLoggedIn');
+        if (isLoggedIn === 'true') {
+            showLoggedInContent();
+        }
+    };
+
+    function attemptLogin() {
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        
+        // Simple authentication (in real app, this would be server-side)
+        // You can change these credentials or implement proper authentication
+        if (username === 'admin' && password === 'password') {
+            // Save login state to session storage
+            sessionStorage.setItem('isLoggedIn', 'true');
+            showLoggedInContent();
+        } else {
+            document.getElementById('errorMessage').style.display = 'block';
+        }
+    }
+    
+    function showLoggedInContent() {
+        // Hide login form
+        document.getElementById('loginForm').style.display = 'none';
+        
+        // Show navigation buttons and welcome message
+        document.getElementById('navButtons').style.display = 'flex';
+        document.getElementById('welcomeMessage').classList.remove('hidden');
+    }
+</script>
 
 </body>
 </html>
