@@ -40,7 +40,8 @@
     }
 
     setInterval(() => {
-        // Không cần refresh liên tục, ảnh trigger sẽ tự động cập nhật khi có té ngã
+        const img = document.getElementById('trigger-image');
+        img.src = '/trigger_feed?' + new Date().getTime();
     }, 1000);
 </script>
 
