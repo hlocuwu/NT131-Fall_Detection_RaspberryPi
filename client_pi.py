@@ -119,16 +119,14 @@ def send_camera():
                             daemon=True
                         ).start()
             else:
-                print(f"Failed to send frame. Code: {response.status_code}")
-                
+                print(f"Failed to send frame. Code: {response.status_code}")               
         except requests.exceptions.Timeout:
             print("Request timed out")
         except requests.exceptions.ConnectionError:
             print("Connection error - server may be down")
             time.sleep(5)
         except Exception as e:
-            print(f"Camera error: {e}")
-            
+            print(f"Camera error: {e}")       
         time.sleep(1/CAMERA_FPS)
 
 def cleanup():

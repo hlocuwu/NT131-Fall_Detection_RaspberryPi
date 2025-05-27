@@ -134,28 +134,28 @@ def detect_fall(landmarks):
     else:
         return False, "Bend Over"
 
-def detect_falling(history, current_frame_id):
-    if current_frame_id < 6 or str(current_frame_id - 6) not in history:
-        return False, "Not enough history"
+# def detect_falling(history, current_frame_id):
+#     if current_frame_id < 6 or str(current_frame_id - 6) not in history:
+#         return False, "Not enough history"
     
-    now_lst = history[str(current_frame_id)]
-    pre_lst = history[str(current_frame_id - 6)]
+#     now_lst = history[str(current_frame_id)]
+#     pre_lst = history[str(current_frame_id - 6)]
 
-    para_falling_s_h_1 = 1.15
-    para_falling_s_h_2 = 0.85
-    para_v_1 = 0.5
+#     para_falling_s_h_1 = 1.15
+#     para_falling_s_h_2 = 0.85
+#     para_v_1 = 0.5
     
-    s_h_high = (pre_lst[23][1] - pre_lst[11][1] + pre_lst[24][1] - pre_lst[12][1]) / 2
-    s_h_long = np.sqrt(((pre_lst[23][1] + pre_lst[24][1] - pre_lst[11][1] - pre_lst[12][1]) / 2)**2 + 
-                       ((pre_lst[23][0] + pre_lst[24][0] - pre_lst[11][0] - pre_lst[12][0]) / 2)**2)
+#     s_h_high = (pre_lst[23][1] - pre_lst[11][1] + pre_lst[24][1] - pre_lst[12][1]) / 2
+#     s_h_long = np.sqrt(((pre_lst[23][1] + pre_lst[24][1] - pre_lst[11][1] - pre_lst[12][1]) / 2)**2 + 
+#                        ((pre_lst[23][0] + pre_lst[24][0] - pre_lst[11][0] - pre_lst[12][0]) / 2)**2)
     
-    if s_h_high < s_h_long * para_falling_s_h_1 and s_h_high > s_h_long * para_falling_s_h_2:
-        return False, "Not falling"
+#     if s_h_high < s_h_long * para_falling_s_h_1 and s_h_high > s_h_long * para_falling_s_h_2:
+#         return False, "Not falling"
     
-    elif now_lst[0][1] < para_v_1 * ((pre_lst[11][1] + pre_lst[12][1]) / 2):
-        return True, "Falling detected"
+#     elif now_lst[0][1] < para_v_1 * ((pre_lst[11][1] + pre_lst[12][1]) / 2):
+#         return True, "Falling detected"
     
-    return False, "Not falling"
+#     return False, "Not falling"
 
 @app.post("/upload")
 async def upload(file: UploadFile = File(...)):
@@ -168,7 +168,6 @@ async def upload(file: UploadFile = File(...)):
     img = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
 
     if img is None:
-        print("Lỗi: Không thể decode ảnh")
         return {"message": "Image decode error"}
 
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -222,7 +221,7 @@ async def upload(file: UploadFile = File(...)):
         else:
             fall_counter = 0
 
-        # Falling detection (only process every FRAME_INTERVAL frames)
+        # Falling detection
         if frame_counter % FRAME_INTERVAL == 0:
             is_falling, falling_status = detect_falling(pose_history, frame_counter)
             if is_falling:
@@ -230,12 +229,10 @@ async def upload(file: UploadFile = File(...)):
                 print(f"!!! FALLING DETECTED !!! - {falling_status}")
                 status_message = falling_status
                 
-                # We could save these frames too if needed
                 _, jpeg_fall = cv2.imencode('.jpg', img)
                 fall_frame = jpeg_fall.tobytes()
                 
-                # Clean up history periodically to avoid memory issues
-                if len(pose_history) > 80:  # Keep last ~4 seconds at 30fps
+                if len(pose_history) > 80:  # Keep last ~4 seconds at 20fps
                     old_keys = sorted([int(k) for k in pose_history.keys()])[:-80]
                     for k in old_keys:
                         if str(k) in pose_history:
@@ -251,7 +248,6 @@ async def upload(file: UploadFile = File(...)):
     # Add status message
     cv2.putText(img, status_message, (10, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA)
 
-    # Luôn cập nhật latest_frame để hiển thị stream chính
     _, jpeg = cv2.imencode('.jpg', img)
     latest_frame = jpeg.tobytes()
 
@@ -314,7 +310,7 @@ async def fall_stats():
                     daily_stats[day_key] += 1
                     
             except Exception as e:
-                print("Lỗi đọc timestamp:", blob.name, e)
+                print("Error read timestamp:", blob.name, e)
 
     for hour in range(24):
         hour_key = f"{hour:02d}:00"
