@@ -46,24 +46,33 @@ PARA_H_F = 0.6
 FRAME_INTERVAL = 30
 
 def log_fall_event_to_gcs(image_bytes: bytes, timestamp: float):
-    client = storage.Client()
-    bucket = client.bucket("fall-log-data") 
-
     readable_time = time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime(timestamp))
-    image_filename = f"fall_events/{readable_time}.jpg"
-    json_filename = f"fall_events/{readable_time}.json"
+    try:
+        client = storage.Client()
+        bucket = client.bucket("fall-log-data") 
 
-    image_blob = bucket.blob(image_filename)
-    image_blob.upload_from_string(image_bytes, content_type="image/jpeg")
+        image_filename = f"fall_events/{readable_time}.jpg"
+        json_filename = f"fall_events/{readable_time}.json"
 
-    event_info = {
-        "event": "fall_detected",
-        "timestamp": readable_time,
-    }
-    json_blob = bucket.blob(json_filename)
-    json_blob.upload_from_string(json.dumps(event_info, indent=2), content_type="application/json")
+        image_blob = bucket.blob(image_filename)
+        image_blob.upload_from_string(image_bytes, content_type="image/jpeg")
 
-    print(f"[GCS] Uploaded fall image and metadata at {readable_time}")
+        event_info = {
+            "event": "fall_detected",
+            "timestamp": readable_time,
+        }
+        json_blob = bucket.blob(json_filename)
+        json_blob.upload_from_string(json.dumps(event_info, indent=2), content_type="application/json")
+
+        print(f"[GCS] Uploaded fall image and metadata at {readable_time}")
+    except Exception as e:
+        print(f"[LOCAL] GCS upload failed or not configured: {e}")
+        import os
+        if not os.path.exists("fall_events"):
+            os.makedirs("fall_events")
+        with open(f"fall_events/{readable_time}.jpg", "wb") as f:
+            f.write(image_bytes)
+        print(f"[LOCAL] Saved fall image locally at fall_events/{readable_time}.jpg")
 
 @app.get("/", response_class=HTMLResponse)
 async def index():

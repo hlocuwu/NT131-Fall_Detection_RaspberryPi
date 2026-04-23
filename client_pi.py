@@ -5,18 +5,24 @@ import psutil
 import threading
 import os
 from dotenv import load_dotenv
-import RPi.GPIO as GPIO
+try:
+    import RPi.GPIO as GPIO
+    GPIO_AVAILABLE = True
+except ImportError:
+    print("RPi.GPIO not found. Running in Local mode.")
+    GPIO_AVAILABLE = False
 
 load_dotenv()
-SERVER_URL = "http://34.9.237.44:8000"
+SERVER_URL = os.getenv("SERVER_URL", "http://127.0.0.1:8000")
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
 # Buzzer setup
 BUZZER_PIN = 17  # GPIO pin for buzzer
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(BUZZER_PIN, GPIO.OUT)
-GPIO.output(BUZZER_PIN, GPIO.HIGH)
+if GPIO_AVAILABLE:
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(BUZZER_PIN, GPIO.OUT)
+    GPIO.output(BUZZER_PIN, GPIO.HIGH)
 
 # Camera settings
 CAMERA_RESOLUTION = (640, 480)
@@ -28,9 +34,13 @@ alert_cooldown = 5
 
 def sound_buzzer(duration=1):
     try:
-        GPIO.output(BUZZER_PIN, GPIO.LOW)
-        time.sleep(duration)
-        GPIO.output(BUZZER_PIN, GPIO.HIGH)
+        if GPIO_AVAILABLE:
+            GPIO.output(BUZZER_PIN, GPIO.LOW)
+            time.sleep(duration)
+            GPIO.output(BUZZER_PIN, GPIO.HIGH)
+        else:
+            print(f"[LOCAL] *BUZZER SOUNDING* for {duration}s!")
+            time.sleep(duration)
     except Exception as e:
         print(f"Buzzer error: {e}")
 
@@ -68,7 +78,12 @@ def send_camera():
     global last_alert_time
     
     try:
-        cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
+        # Code cho Raspberry Pi (Linux V4L2):
+        # cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
+        
+        # Code cho Laptop (Windows/Mac/Linux chung):
+        cap = cv2.VideoCapture(0)
+        
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_RESOLUTION[0])
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_RESOLUTION[1])
         cap.set(cv2.CAP_PROP_FPS, CAMERA_FPS)
@@ -130,8 +145,11 @@ def send_camera():
         time.sleep(1/CAMERA_FPS)
 
 def cleanup():
-    GPIO.cleanup()
-    print("GPIO cleaned up")
+    if GPIO_AVAILABLE:
+        GPIO.cleanup()
+        print("GPIO cleaned up")
+    else:
+        print("[LOCAL] Mock GPIO cleaned up")
 
 if __name__ == "__main__":
     try:

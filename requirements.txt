@@ -1,0 +1,10 @@
+fastapi
+python-multipart
+uvicorn
+opencv-python
+numpy
+mediapipe
+google-cloud-storage
+requests
+psutil
+python-dotenv
