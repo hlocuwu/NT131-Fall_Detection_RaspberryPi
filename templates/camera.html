@@ -1,49 +1,106 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Giám sát</title>
-    <link rel="stylesheet" href="../custom/styles.css">
+    <title>VILBE IoT - Live Monitor</title>
+    <link rel="stylesheet" href="/custom/styles.css">
 </head>
 <body>
-
-<header>
-    <div class="logo" onclick="location.href='/'">Nhóm 04</div>
-    <div class="buttons">
-        <button class="button active" onclick="location.href='/camera'">Giám sát</button>
-        <button class="button" onclick="location.href='/chart'">Hệ thống</button>
-        <button class="button" onclick="location.href='/fallchart'">Thống kê</button>
-    </div>
-</header>
-
-<div class="content">
-    <h2>Camera Stream</h2>
-    <div class="main-layout">
-        <div class="main-stream">
-            <img src="/video_feed" alt="Video Stream" width="950" height="550" style="border: 5px solid rgb(255, 0, 0);">
-        </div>
-
-        <div class="trigger-panel">
-            <div class="trigger-frame">
-                <img id="trigger-image" src="/trigger_feed" alt="Trigger Frame" width="350" height="250">
+    <div class="app-wrapper">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <div class="logo-text">VILBE IoT</div>
+                <div class="logo-sub">Fall Detection System</div>
             </div>
-            <button class="trigger-button" onclick="resetTrigger()">RESET</button>
+            <div class="nav-section-title">Navigation</div>
+            <a class="nav-item" href="/"><span class="nav-icon">🏠</span> Dashboard</a>
+            <a class="nav-item active" href="/camera"><span class="nav-icon">📷</span> Live Monitor</a>
+            <a class="nav-item" href="/chart"><span class="nav-icon">📊</span> System Metrics</a>
+            <a class="nav-item" href="/fallchart"><span class="nav-icon">📈</span> Fall Statistics</a>
+            <div class="sidebar-footer">2024 NT131 - Group 04 - UIT</div>
+        </aside>
+
+        <div class="main-wrapper">
+            <header class="app-header">
+                <span class="header-title">Live Monitor</span>
+                <div class="search-box">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" placeholder="Search...">
+                </div>
+                <div class="header-actions">
+                    <div class="notif-wrapper">
+                        <div class="icon-btn" title="Notifications">🔔</div>
+                        <div class="notif-badge"></div>
+                    </div>
+                    <button class="theme-toggle" onclick="toggleTheme()">
+                        <span id="themeIcon">☀️</span>
+                        <span id="themeText">Light</span>
+                    </button>
+                    <div class="avatar" title="Admin">A</div>
+                </div>
+            </header>
+
+            <main class="page-content">
+                <div class="page-header">
+                    <div class="page-title">Live Camera Stream</div>
+                    <div class="page-breadcrumb"><span class="live-indicator"><span class="live-dot"></span>Live Feed Active</span></div>
+                </div>
+
+                <div class="camera-layout">
+                    <div class="stream-card">
+                        <div class="section-header" style="margin-bottom:14px;">
+                            <div>
+                                <div class="card-title">Main Camera</div>
+                                <div class="card-subtitle">Real-time pose detection stream</div>
+                            </div>
+                            <span class="badge badge-active"><span class="badge-dot"></span>Active</span>
+                        </div>
+                        <img src="/video_feed" alt="Video Stream">
+                    </div>
+
+                    <div class="trigger-card">
+                        <div style="text-align:center;">
+                            <div class="card-title">Fall Trigger</div>
+                            <div class="card-subtitle">Last detected frame</div>
+                        </div>
+                        <img id="trigger-image" src="/trigger_feed" alt="Trigger Frame">
+                        <button class="btn-reset" onclick="resetTrigger()">RESET</button>
+                    </div>
+                </div>
+            </main>
         </div>
     </div>
-</div>
 
-<script>
-    function resetTrigger() {
-        const img = document.getElementById('trigger-image');
-        img.src = '/trigger_feed?' + new Date().getTime(); // Force reload to blank image
-    }
+    <script>
+        function resetTrigger() {
+            document.getElementById('trigger-image').src = '/trigger_feed?' + Date.now();
+        }
 
-    setInterval(() => {
-        const img = document.getElementById('trigger-image');
-        img.src = '/trigger_feed?' + new Date().getTime();
-    }, 1000);
-</script>
+        setInterval(function () {
+            document.getElementById('trigger-image').src = '/trigger_feed?' + Date.now();
+        }, 1000);
 
+        function getTheme() {
+            return localStorage.getItem('theme') || 'light';
+        }
+
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            const isDark = theme === 'dark';
+            document.getElementById('themeIcon').textContent = isDark ? '🌙' : '☀️';
+            document.getElementById('themeText').textContent = isDark ? 'Dark' : 'Light';
+        }
+
+        function toggleTheme() {
+            const nextTheme = getTheme() === 'light' ? 'dark' : 'light';
+            localStorage.setItem('theme', nextTheme);
+            applyTheme(nextTheme);
+        }
+
+        window.onload = function () {
+            applyTheme(getTheme());
+        };
+    </script>
 </body>
 </html>

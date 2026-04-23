@@ -1,139 +1,202 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fall Detection System</title>
-    <link rel="stylesheet" href="../custom/styles.css">
-    <style>
-        .login-container {
-            max-width: 400px;
-            margin: 100px auto;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            background-color: white;
-            text-align: center;
-        }
-        
-        .login-container h1 {
-            margin-bottom: 20px;
-            color: #333;
-        }
-        
-        .login-form input {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 15px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-        
-        .login-button {
-            background-color: #4CAF50;
-            color: white;
-            padding: 12px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            width: 100%;
-        }
-        
-        .login-button:hover {
-            background-color: #45a049;
-        }
-        
-        .error-message {
-            color: red;
-            margin-bottom: 15px;
-            display: none;
-        }
-        
-        .hidden {
-            display: none;
-        }
-        
-        /* Initially hide the navigation buttons */
-        .buttons {
-            display: none;
-        }
-    </style>
+    <title>VILBE IoT - Fall Detection System</title>
+    <link rel="stylesheet" href="/custom/styles.css">
 </head>
 <body>
-
-<header>
-    <div class="logo" onclick="location.href='/'">Nhóm 04</div>
-    <div class="buttons" id="navButtons">
-        <button class="button" onclick="location.href='/camera'">Giám sát</button>
-        <button class="button" onclick="location.href='/chart'">Hệ thống</button>
-        <button class="button" onclick="location.href='/fallchart'">Thống kê</button>
-    </div>
-</header>
-
-<div class="content">
-    <!-- Login Form (initially visible) -->
-    <div class="login-container" id="loginForm">
-        <h1>Hệ thống phát hiện té ngã</h1>
-        <p>Vui lòng đăng nhập để truy cập hệ thống</p>
-        
-        <div class="error-message" id="errorMessage">
-            Tên đăng nhập hoặc mật khẩu không đúng!
+    <div class="login-page" id="loginPage">
+        <div class="login-theme-btn">
+            <button class="theme-toggle" onclick="toggleTheme()">
+                <span id="themeIconLogin">☀️</span>
+                <span id="themeTextLogin">Light</span>
+            </button>
         </div>
-        
-        <div class="login-form">
-            <input type="text" id="username" placeholder="Tên đăng nhập" required>
-            <input type="password" id="password" placeholder="Mật khẩu" required>
-            <button class="login-button" onclick="attemptLogin()">Đăng nhập</button>
+
+        <div class="login-card">
+            <div class="login-logo">
+                <span class="brand">VILBE IoT</span>
+                <div class="tagline">Fall Detection Monitoring System</div>
+            </div>
+
+            <h2>Welcome back</h2>
+            <p class="login-desc">Sign in to access the monitoring dashboard</p>
+
+            <div class="error-msg" id="errorMessage">
+                Invalid username or password. Please try again.
+            </div>
+
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" class="form-control" id="username" placeholder="Enter your username" autocomplete="username">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" class="form-control" id="password" placeholder="Enter your password" autocomplete="current-password" onkeydown="if (event.key === 'Enter') attemptLogin()">
+            </div>
+
+            <button class="btn-primary" onclick="attemptLogin()">Sign In</button>
+
+            <div style="text-align:center;margin-top:22px;font-size:11px;color:var(--text-muted);">
+                NT131 - Wireless Embedded Systems - UIT 2024
+            </div>
         </div>
     </div>
-    
-    <!-- Welcome message (initially hidden) -->
-    <div class="tab hidden" id="welcomeMessage">
-        <h2>Chào mừng đến với hệ thống phát hiện té ngã!</h2>
-        <h4>Đây là đồ án môn học NT131 - Hệ thống nhúng Mạng không dây của nhóm 04 - NT131.P22 - UIT.</h4>
-        <h4>Gồm các thành viên: </h4>
-        <p>23520858 - Nguyễn Hoàng Lộc </p>
-        <p>23520738 - Huỳnh Minh Khoa </p>
-        <p>23520524 - Lê Xuân Hoàng </p>
-        <h4>Sử dụng các nút phía trên để điều hướng đến các chức năng của hệ thống.</h4>
-    </div>
-</div>
 
-<script>
-    // Check if user is already logged in (using session storage)
-    window.onload = function() {
-        const isLoggedIn = sessionStorage.getItem('isLoggedIn');
-        if (isLoggedIn === 'true') {
-            showLoggedInContent();
+    <div class="app-wrapper hidden" id="dashboardPage">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <div class="logo-text">VILBE IoT</div>
+                <div class="logo-sub">Fall Detection System</div>
+            </div>
+
+            <div class="nav-section-title">Navigation</div>
+            <a class="nav-item active" href="/">
+                <span class="nav-icon">🏠</span> Dashboard
+            </a>
+            <a class="nav-item" href="/camera">
+                <span class="nav-icon">📷</span> Live Monitor
+            </a>
+            <a class="nav-item" href="/chart">
+                <span class="nav-icon">📊</span> System Metrics
+            </a>
+            <a class="nav-item" href="/fallchart">
+                <span class="nav-icon">📈</span> Fall Statistics
+            </a>
+
+            <div class="sidebar-footer">2024 NT131 - Group 04 - UIT</div>
+        </aside>
+
+        <div class="main-wrapper">
+            <header class="app-header">
+                <span class="header-title">Dashboard</span>
+                <div class="search-box">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" placeholder="Search...">
+                </div>
+                <div class="header-actions">
+                    <div class="notif-wrapper">
+                        <div class="icon-btn" title="Notifications">🔔</div>
+                        <div class="notif-badge"></div>
+                    </div>
+                    <button class="theme-toggle" onclick="toggleTheme()">
+                        <span id="themeIcon">☀️</span>
+                        <span id="themeText">Light</span>
+                    </button>
+                    <div class="avatar" title="Admin">A</div>
+                </div>
+            </header>
+
+            <main class="page-content">
+                <div class="page-header">
+                    <div class="page-title">Welcome to VILBE IoT</div>
+                    <div class="page-breadcrumb">Fall Detection and Monitoring System</div>
+                </div>
+
+                <div class="metric-grid">
+                    <div class="metric-card" onclick="location.href='/camera'" style="cursor:pointer;">
+                        <div class="metric-icon">📷</div>
+                        <div>
+                            <div class="metric-value"><span class="live-indicator"><span class="live-dot"></span>LIVE</span></div>
+                            <div class="metric-label">Live Camera Monitor</div>
+                        </div>
+                    </div>
+                    <div class="metric-card" onclick="location.href='/chart'" style="cursor:pointer;">
+                        <div class="metric-icon cyan">📊</div>
+                        <div>
+                            <div class="metric-value" style="font-size:16px;">System Metrics</div>
+                            <div class="metric-label">CPU and Memory Usage</div>
+                        </div>
+                    </div>
+                    <div class="metric-card" onclick="location.href='/fallchart'" style="cursor:pointer;">
+                        <div class="metric-icon" style="background:linear-gradient(135deg,#ff4d6d,#c9184a);">📈</div>
+                        <div>
+                            <div class="metric-value" style="font-size:16px;">Fall Statistics</div>
+                            <div class="metric-label">Hourly and Daily Events</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card">
+                    <div class="card-title">About This System</div>
+                    <div class="card-subtitle">NT131 - Wireless Embedded Systems - NT131.P22 - UIT</div>
+                    <p style="color:var(--text-secondary);font-size:13px;line-height:1.75;margin-bottom:20px;">
+                        This fall detection system uses computer vision and pose estimation running on Raspberry Pi to detect falls in real time. The interface has been converted to English and redesigned with a glassmorphism layout for clearer presentation and better font consistency.
+                    </p>
+                    <div class="member-grid">
+                        <div class="member-card">
+                            <div class="member-id">23520858</div>
+                            <div class="member-name">Nguyen Hoang Loc</div>
+                        </div>
+                        <div class="member-card">
+                            <div class="member-id">23520738</div>
+                            <div class="member-name">Huynh Minh Khoa</div>
+                        </div>
+                        <div class="member-card">
+                            <div class="member-id">23520524</div>
+                            <div class="member-name">Le Xuan Hoang</div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        function getTheme() {
+            return localStorage.getItem('theme') || 'light';
         }
-    };
 
-    function attemptLogin() {
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
-        
-        // Simple authentication (in real app, this would be server-side)
-        // You can change these credentials or implement proper authentication
-        if (username === 'admin' && password === 'password') {
-            // Save login state to session storage
-            sessionStorage.setItem('isLoggedIn', 'true');
-            showLoggedInContent();
-        } else {
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            const isDark = theme === 'dark';
+            const icon = isDark ? '🌙' : '☀️';
+            const text = isDark ? 'Dark' : 'Light';
+            ['themeIcon', 'themeIconLogin'].forEach((id) => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.textContent = icon;
+                }
+            });
+            ['themeText', 'themeTextLogin'].forEach((id) => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.textContent = text;
+                }
+            });
+        }
+
+        function toggleTheme() {
+            const nextTheme = getTheme() === 'light' ? 'dark' : 'light';
+            localStorage.setItem('theme', nextTheme);
+            applyTheme(nextTheme);
+        }
+
+        function attemptLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            if (username === 'admin' && password === 'password') {
+                sessionStorage.setItem('isLoggedIn', 'true');
+                showDashboard();
+                return;
+            }
             document.getElementById('errorMessage').style.display = 'block';
         }
-    }
-    
-    function showLoggedInContent() {
-        // Hide login form
-        document.getElementById('loginForm').style.display = 'none';
-        
-        // Show navigation buttons and welcome message
-        document.getElementById('navButtons').style.display = 'flex';
-        document.getElementById('welcomeMessage').classList.remove('hidden');
-    }
-</script>
 
+        function showDashboard() {
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('dashboardPage').classList.remove('hidden');
+        }
+
+        window.onload = function () {
+            applyTheme(getTheme());
+            if (sessionStorage.getItem('isLoggedIn') === 'true') {
+                showDashboard();
+            }
+        };
+    </script>
 </body>
 </html>

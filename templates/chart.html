@@ -1,111 +1,206 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ Thống</title>
-    <link rel="stylesheet" href="../custom/styles.css">
+    <title>VILBE IoT - System Metrics</title>
+    <link rel="stylesheet" href="/custom/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-
-<header>
-    <div class="logo" onclick="location.href='/'">Nhóm 04</div>
-    <div class="buttons">
-        <button class="button active" onclick="location.href='/camera'">Giám sát</button>
-        <button class="button" onclick="location.href='/chart'">Hệ thống</button>
-        <button class="button" onclick="location.href='/fallchart'">Thống kê</button>
-    </div>
-</header>
-
-<div class="content">
-    <div class="tab">
-        <h2>Biểu đồ hệ thống</h2>
-        <div class="chart-container">
-            <div class="chart-box">
-                <canvas id="cpuChart"></canvas>
+    <div class="app-wrapper">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <div class="logo-text">VILBE IoT</div>
+                <div class="logo-sub">Fall Detection System</div>
             </div>
-            <div class="chart-box">
-                <canvas id="memChart"></canvas>
-            </div>
+            <div class="nav-section-title">Navigation</div>
+            <a class="nav-item" href="/"><span class="nav-icon">🏠</span> Dashboard</a>
+            <a class="nav-item" href="/camera"><span class="nav-icon">📷</span> Live Monitor</a>
+            <a class="nav-item active" href="/chart"><span class="nav-icon">📊</span> System Metrics</a>
+            <a class="nav-item" href="/fallchart"><span class="nav-icon">📈</span> Fall Statistics</a>
+            <div class="sidebar-footer">2024 NT131 - Group 04 - UIT</div>
+        </aside>
+
+        <div class="main-wrapper">
+            <header class="app-header">
+                <span class="header-title">System Metrics</span>
+                <div class="search-box">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" placeholder="Search...">
+                </div>
+                <div class="header-actions">
+                    <div class="notif-wrapper">
+                        <div class="icon-btn" title="Notifications">🔔</div>
+                        <div class="notif-badge"></div>
+                    </div>
+                    <button class="theme-toggle" onclick="toggleTheme()">
+                        <span id="themeIcon">☀️</span>
+                        <span id="themeText">Light</span>
+                    </button>
+                    <div class="avatar" title="Admin">A</div>
+                </div>
+            </header>
+
+            <main class="page-content">
+                <div class="page-header">
+                    <div class="page-title">System Performance</div>
+                    <div class="page-breadcrumb">Real-time CPU and memory monitoring</div>
+                </div>
+
+                <div class="metric-grid" style="grid-template-columns:repeat(2,minmax(180px,240px));margin-bottom:24px;">
+                    <div class="metric-card">
+                        <div class="metric-icon">💻</div>
+                        <div>
+                            <div class="metric-value" id="cpuValue">--</div>
+                            <div class="metric-label">CPU Usage</div>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-icon cyan">🧠</div>
+                        <div>
+                            <div class="metric-value" id="memValue">--</div>
+                            <div class="metric-label">Memory Usage</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chart-grid">
+                    <div class="chart-card">
+                        <div class="card-title">CPU Usage (%)</div>
+                        <div class="card-subtitle">Last 20 samples</div>
+                        <canvas id="cpuChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <div class="card-title">Memory Usage (%)</div>
+                        <div class="card-subtitle">Last 20 samples</div>
+                        <canvas id="memChart"></canvas>
+                    </div>
+                </div>
+            </main>
         </div>
     </div>
 
-<script>
-    const cpuCtx = document.getElementById('cpuChart').getContext('2d');
-    const memCtx = document.getElementById('memChart').getContext('2d');
+    <script>
+        let cpuChart;
+        let memChart;
 
-    const cpuChart = new Chart(cpuCtx, {
-        type: 'line',
-        data: {
-            labels: [],
-            datasets: [{
-                label: 'CPU Usage (%)',
-                borderColor: 'red',
-                borderWidth: 2,
-                data: []
-            }]
-        },
-        options: {
-            responsive: true,
-            animation: false,
-            scales: {
-                y: {
-                    suggestedMin: 0,
-                    suggestedMax: 100
+        function getTheme() {
+            return localStorage.getItem('theme') || 'light';
+        }
+
+        function getChartOptions(isDark) {
+            const textColor = isDark ? '#90CAF9' : '#4A6FA5';
+            const gridColor = isDark ? 'rgba(144,202,249,0.10)' : 'rgba(0,119,182,0.10)';
+            return {
+                responsive: true,
+                animation: false,
+                scales: {
+                    y: {
+                        suggestedMin: 0,
+                        suggestedMax: 100,
+                        ticks: { color: textColor },
+                        grid: { color: gridColor }
+                    },
+                    x: {
+                        ticks: { color: textColor },
+                        grid: { color: gridColor }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: { color: textColor }
+                    }
                 }
+            };
+        }
+
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            const isDark = theme === 'dark';
+            document.getElementById('themeIcon').textContent = isDark ? '🌙' : '☀️';
+            document.getElementById('themeText').textContent = isDark ? 'Dark' : 'Light';
+            if (cpuChart && memChart) {
+                const options = getChartOptions(isDark);
+                cpuChart.options = options;
+                memChart.options = options;
+                cpuChart.update();
+                memChart.update();
             }
         }
-    });
 
-    const memChart = new Chart(memCtx, {
-        type: 'line',
-        data: {
-            labels: [],
-            datasets: [{
-                label: 'Memory Usage (%)',
-                borderColor: 'blue',
-                borderWidth: 2,
-                data: []
-            }]
-        },
-        options: {
-            responsive: true,
-            animation: false,
-            scales: {
-                y: {
-                    suggestedMin: 0,
-                    suggestedMax: 100
+        function toggleTheme() {
+            const nextTheme = getTheme() === 'light' ? 'dark' : 'light';
+            localStorage.setItem('theme', nextTheme);
+            applyTheme(nextTheme);
+        }
+
+        window.onload = function () {
+            const isDark = getTheme() === 'dark';
+            applyTheme(getTheme());
+
+            cpuChart = new Chart(document.getElementById('cpuChart').getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'CPU Usage (%)',
+                        borderColor: '#00B4D8',
+                        backgroundColor: 'rgba(0,180,216,0.10)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.35,
+                        data: []
+                    }]
+                },
+                options: getChartOptions(isDark)
+            });
+
+            memChart = new Chart(document.getElementById('memChart').getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Memory Usage (%)',
+                        borderColor: '#00F5D4',
+                        backgroundColor: 'rgba(0,245,212,0.10)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.35,
+                        data: []
+                    }]
+                },
+                options: getChartOptions(isDark)
+            });
+
+            setInterval(async function () {
+                try {
+                    const response = await fetch('/get_metrics');
+                    const data = await response.json();
+                    const now = new Date().toLocaleTimeString();
+
+                    document.getElementById('cpuValue').textContent = Number(data.cpu).toFixed(1) + '%';
+                    document.getElementById('memValue').textContent = Number(data.memory).toFixed(1) + '%';
+
+                    cpuChart.data.labels.push(now);
+                    cpuChart.data.datasets[0].data.push(data.cpu);
+                    memChart.data.labels.push(now);
+                    memChart.data.datasets[0].data.push(data.memory);
+
+                    if (cpuChart.data.labels.length > 20) {
+                        cpuChart.data.labels.shift();
+                        cpuChart.data.datasets[0].data.shift();
+                        memChart.data.labels.shift();
+                        memChart.data.datasets[0].data.shift();
+                    }
+
+                    cpuChart.update();
+                    memChart.update();
+                } catch (error) {
+                    console.error('Error fetching metrics:', error);
                 }
-            }
-        }
-    });
-
-    setInterval(async () => {
-        try {
-            const res = await fetch('/get_metrics');
-            const data = await res.json();
-            const now = new Date().toLocaleTimeString();
-
-            cpuChart.data.labels.push(now);
-            cpuChart.data.datasets[0].data.push(data.cpu);
-            memChart.data.labels.push(now);
-            memChart.data.datasets[0].data.push(data.memory);
-
-            if (cpuChart.data.labels.length > 20) {
-                cpuChart.data.labels.shift();
-                cpuChart.data.datasets[0].data.shift();
-                memChart.data.labels.shift();
-                memChart.data.datasets[0].data.shift();
-            }
-
-            cpuChart.update();
-            memChart.update();
-        } catch (err) {
-            console.error('Error fetching metrics:', err);
-        }
-    }, 1000);
-</script>
-
+            }, 1000);
+        };
+    </script>
 </body>
 </html>

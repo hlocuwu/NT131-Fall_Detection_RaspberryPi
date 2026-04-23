@@ -1,203 +1,143 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thống kê té ngã</title>
-    <link rel="stylesheet" href="../custom/styles.css">
-    <style>
-        /* Thêm CSS để kiểm soát kích thước chart */
-        .chart-container {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            width: 100%;
-            height: 100%;
-            overflow: hidden; /* Ngăn scroll nếu nội dung vượt quá */
-        }
-        
-        .chart-box {
-            width: 100%;
-            height: 400px; /* Tăng chiều cao cho mỗi chart */
-            position: relative;
-            margin-bottom: 20px;
-        }
-        
-        canvas {
-            max-height: 100%; /* Đảm bảo canvas không vượt quá box */
-            width: 100% !important;
-            height: 350px !important; /* Tăng chiều cao cho canvas */
-        }
-        
-        /* Responsive adjustment */
-        @media (min-width: 768px) {
-            .chart-container {
-                flex-direction: row;
-                gap: 2%;
-            }
-            
-            .chart-box {
-                width: 49%;
-                height: 450px; /* Tăng chiều cao trên màn hình lớn */
-            }
-            
-            canvas {
-                height: 400px !important; /* Tăng chiều cao canvas trên màn hình lớn */
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VILBE IoT &mdash; Fall Statistics</title>
+  <link rel="stylesheet" href="/custom/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
-<header>
-    <div class="logo" onclick="location.href='/'">Nhóm 04</div>
-    <div class="buttons">
-        <button class="button active" onclick="location.href='/camera'">Giám sát</button>
-        <button class="button" onclick="location.href='/chart'">Hệ thống</button>
-        <button class="button" onclick="location.href='/fallchart'">Thống kê</button>
+<div class="app-wrapper">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-text">VILBE IoT</div>
+      <div class="logo-sub">Fall Detection System</div>
     </div>
-</header>
+    <div class="nav-section-title">Navigation</div>
+    <a class="nav-item" href="/"><span class="nav-icon">&#127968;</span> Dashboard</a>
+    <a class="nav-item" href="/camera"><span class="nav-icon">&#128247;</span> Live Monitor</a>
+    <a class="nav-item" href="/chart"><span class="nav-icon">&#128202;</span> System Metrics</a>
+    <a class="nav-item active" href="/fallchart"><span class="nav-icon">&#128201;</span> Fall Statistics</a>
+    <div class="sidebar-footer">&copy; 2024 NT131 &bull; Group 04 &bull; UIT</div>
+  </aside>
 
-<div class="content">
-    <div class="tab">
-        <h2>Thống kê té ngã</h2>
-        <div class="chart-container">
-            <div class="chart-box">
-                <h3>Thống kê theo giờ (Hôm nay: {{ current_date }})</h3>
-                <canvas id="hourlyChart"></canvas>
-            </div>
-            <div class="chart-box">
-                <h3>Thống kê theo ngày (Tháng hiện tại)</h3>
-                <canvas id="dailyChart"></canvas>
-            </div>
+  <div class="main-wrapper">
+    <header class="app-header">
+      <span class="header-title">Fall Statistics</span>
+      <div class="search-box">
+        <span class="search-icon">&#128269;</span>
+        <input type="text" placeholder="Search...">
+      </div>
+      <div class="header-actions">
+        <div class="notif-wrapper">
+          <div class="icon-btn" title="Notifications">&#128276;</div>
+          <div class="notif-badge"></div>
         </div>
-    </div>
-    
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-        // Lấy ngày hiện tại để hiển thị
-        const now = new Date();
-        const currentDate = now.toLocaleDateString();
-        document.querySelector('h3').innerHTML = `Thống kê theo giờ (Hôm nay: ${currentDate})`;
-        
-        let hourlyChart, dailyChart;
-        
-        function updateCharts() {
-            fetch('/fall_stats')
-                .then(res => res.json())
-                .then(data => {
-                    updateChart(hourlyChart, data.hourly);
-                    updateChart(dailyChart, data.daily);
-                });
-        }
-        
-        function updateChart(chart, dataset) {
-            const labels = Object.keys(dataset);
-            const values = labels.map(key => dataset[key]);
-        
-            chart.data.labels = labels;
-            chart.data.datasets[0].data = values;
-            chart.update();
-        }
-        
-        // Khởi tạo biểu đồ
-        fetch('/fall_stats')
-            .then(res => res.json())
-            .then(data => {
-                // Biểu đồ theo giờ
-                hourlyChart = new Chart(document.getElementById('hourlyChart'), {
-                    type: 'bar',
-                    data: {
-                        labels: Object.keys(data.hourly),
-                        datasets: [{
-                            label: 'Số lần té ngã',
-                            data: Object.values(data.hourly),
-                            backgroundColor: 'rgba(255, 99, 132, 0.7)',
-                            borderColor: 'rgba(255, 99, 132, 1)',
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false, // Cho phép điều chỉnh tỷ lệ
-                        plugins: {
-                            legend: { display: false },
-                            title: { 
-                                display: true, 
-                                text: 'Số lần té ngã theo giờ' 
-                            }
-                        },
-                        scales: {
-                            y: { 
-                                beginAtZero: true,
-                                title: {
-                                    display: true,
-                                    text: 'Số lần té ngã'
-                                },
-                                ticks: {
-                                    stepSize: 1,
-                                    precision: 0
-                                }
-                            },
-                            x: {
-                                title: {
-                                    display: true,
-                                    text: 'Giờ trong ngày'
-                                }
-                            }
-                        }
-                    }
-                });
-                
-                // Biểu đồ theo ngày
-                dailyChart = new Chart(document.getElementById('dailyChart'), {
-                    type: 'bar',
-                    data: {
-                        labels: Object.keys(data.daily),
-                        datasets: [{
-                            label: 'Số lần té ngã',
-                            data: Object.values(data.daily),
-                            backgroundColor: 'rgba(54, 162, 235, 0.7)',
-                            borderColor: 'rgba(54, 162, 235, 1)',
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false, // Cho phép điều chỉnh tỷ lệ
-                        plugins: {
-                            legend: { display: false },
-                            title: { 
-                                display: true, 
-                                text: 'Số lần té ngã theo ngày' 
-                            }
-                        },
-                        scales: {
-                            y: { 
-                                beginAtZero: true,
-                                title: {
-                                    display: true,
-                                    text: 'Số lần té ngã'
-                                },
-                                ticks: {
-                                    stepSize: 1,
-                                    precision: 0
-                                }
-                            },
-                            x: {
-                                title: {
-                                    display: true,
-                                    text: 'Ngày trong tháng'
-                                }
-                            }
-                        }
-                    }
-                });
-                
-                // Cập nhật mỗi phút
-                setInterval(updateCharts, 60000);
-            });
-    </script>            
+        <button class="theme-toggle" onclick="toggleTheme()">
+          <span id="themeIcon">&#9728;&#65039;</span>
+          <span id="themeText">Light</span>
+        </button>
+        <div class="avatar" title="Admin">A</div>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <div class="page-header">
+        <div class="page-title">Fall Detection Analytics</div>
+        <div class="page-breadcrumb" id="dateDisplay">Loading date...</div>
+      </div>
+
+      <div class="chart-grid">
+        <div class="chart-card">
+          <div class="card-title">Hourly Distribution</div>
+          <div class="card-subtitle" id="hourlySubtitle">Today&apos;s fall events by hour</div>
+          <canvas id="hourlyChart" style="max-height:350px;"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="card-title">Daily Distribution</div>
+          <div class="card-subtitle">This month&apos;s fall events by day</div>
+          <canvas id="dailyChart" style="max-height:350px;"></canvas>
+        </div>
+      </div>
+    </main>
+  </div>
 </div>
+
+<script>
+  function getTheme() { return localStorage.getItem('theme') || 'light'; }
+  function applyTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    var dark = t === 'dark';
+    document.getElementById('themeIcon').textContent = dark ? '\u{1F319}' : '\u2600\uFE0F';
+    document.getElementById('themeText').textContent = dark ? 'Dark' : 'Light';
+  }
+  function toggleTheme() {
+    var next = getTheme() === 'light' ? 'dark' : 'light';
+    localStorage.setItem('theme', next); applyTheme(next);
+  }
+
+  function chartOpts(dark, xTitle, yTitle) {
+    var tc = dark ? '#90CAF9' : '#4A6FA5';
+    var gc = dark ? 'rgba(144,202,249,0.10)' : 'rgba(0,119,182,0.10)';
+    return {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true,
+             ticks: { stepSize: 1, precision: 0, color: tc },
+             grid: { color: gc },
+             title: { display: true, text: yTitle || 'Falls', color: tc } },
+        x: { ticks: { color: tc }, grid: { color: gc },
+             title: { display: true, text: xTitle || '', color: tc } }
+      }
+    };
+  }
+
+  var hourlyChart, dailyChart;
+
+  function updateCharts() {
+    fetch('/fall_stats').then(function(r){ return r.json(); }).then(function(data) {
+      if (hourlyChart) { hourlyChart.data.labels = Object.keys(data.hourly); hourlyChart.data.datasets[0].data = Object.values(data.hourly); hourlyChart.update(); }
+      if (dailyChart)  { dailyChart.data.labels  = Object.keys(data.daily);  dailyChart.data.datasets[0].data  = Object.values(data.daily);  dailyChart.update(); }
+    });
+  }
+
+  window.onload = function() {
+    applyTheme(getTheme());
+    var dark = getTheme() === 'dark';
+    var now = new Date();
+    document.getElementById('dateDisplay').textContent =
+      'Date: ' + now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    document.getElementById('hourlySubtitle').textContent =
+      'Today (' + now.toLocaleDateString() + ') — fall events by hour';
+
+    fetch('/fall_stats').then(function(r){ return r.json(); }).then(function(data) {
+      hourlyChart = new Chart(document.getElementById('hourlyChart'), {
+        type: 'bar',
+        data: { labels: Object.keys(data.hourly), datasets: [{
+          label: 'Fall Events', data: Object.values(data.hourly),
+          backgroundColor: 'rgba(0,180,216,0.65)', borderColor: '#00B4D8',
+          borderWidth: 2, borderRadius: 6
+        }] },
+        options: chartOpts(dark, 'Hour of Day', 'Number of Falls')
+      });
+
+      dailyChart = new Chart(document.getElementById('dailyChart'), {
+        type: 'bar',
+        data: { labels: Object.keys(data.daily), datasets: [{
+          label: 'Fall Events', data: Object.values(data.daily),
+          backgroundColor: 'rgba(0,245,212,0.65)', borderColor: '#00F5D4',
+          borderWidth: 2, borderRadius: 6
+        }] },
+        options: chartOpts(dark, 'Day of Month', 'Number of Falls')
+      });
+
+      setInterval(updateCharts, 60000);
+    });
+  };
+</script>
+
 </body>
 </html>
