@@ -1,0 +1,15 @@
+# Environments
+venv/
+.venv/
+env/
+
+# Python caching
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables
+.env
+
+# Fall events locally saved
+fall_events/
