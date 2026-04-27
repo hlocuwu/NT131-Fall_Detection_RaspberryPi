@@ -4,7 +4,7 @@
 
 ## 🌟 Chức Năng Chính
 - **AI Backend Server (`server.py`)**: Nhận dữ liệu hình ảnh liên tục từ Client, dùng `mediapipe.solutions.pose` trích xuất khung xương, phân tích tính toán góc ngã và khoảng cách.
-- **Client Camera (`client_pi.py`)**: Chạy vòng lặp lấy frame từ Webcam, nén và gửi Stream qua API. Gửi thêm thông số hệ thống (CPU, RAM).
+- **Client Camera (`client.py`)**: Chạy vòng lặp lấy frame từ Webcam, nén và gửi Stream qua API. Gửi thêm thông số hệ thống (CPU, RAM).
 - **Hệ thống cảnh báo**: Khi phát hiện ngã, kích hoạt Buzzer (Pin GPIO 17) và gửi cảnh báo qua Telegram.
 - **Lưu trữ Cloud**: Tự động lưu hình ảnh lúc ngã lên Google Cloud Storage (Bucket `fall-log-data`). Có chế độ tự động lưu file Local (thư mục `fall_events/`) nếu không có GCS.
 - **Dashboard Web**: Cung cấp giao diện trực quan tại đường dẫn `http://<IP_SERVER>:8000/`. Dashboard vẽ biểu đồ lịch sử, xem camera trực tiếp.
@@ -65,15 +65,15 @@ Mở một cửa sổ Terminal/Command Prompt thứ 2 và chạy client:
 
 **Trường hợp 1: Chạy Desktop / Windows (Đóng giả Pi):**
 ```bash
-python client_pi.py
+python client.py
 # Ở môi trường PC, hệ thống sẽ tự động phát hiện thiếu GPIO và chuyển 
 # báo động qua chế độ [LOCAL] (Chỉ in ra Text chứ không chập mạch điện thật).
 ```
-**Lưu ý khi chạy PC**: Hàm `cv2.VideoCapture(0)` có thể gặp lỗi nếu bạn chạy lệnh này bên trong ảo hoá WSL/Ubuntu mà chưa cấp quyền pass-through Camera. Lời khuyên là hãy **chạy file `client_pi.py` bằng Python gốc Cài trực tiếp trên Windows**, hoặc thay số `0` bằng tên một file `.mp4` (VD: `cv2.VideoCapture('test.mp4')`).
+**Lưu ý khi chạy PC**: Hàm `cv2.VideoCapture(0)` có thể gặp lỗi nếu bạn chạy lệnh này bên trong ảo hoá WSL/Ubuntu mà chưa cấp quyền pass-through Camera. Lời khuyên là hãy **chạy file `client.py` bằng Python gốc Cài trực tiếp trên Windows**, hoặc thay số `0` bằng tên một file `.mp4` (VD: `cv2.VideoCapture('test.mp4')`).
 
 **Trường hợp 2: Chạy thực tế trên Raspberry Pi:**
 ```bash
-python client_pi.py
+python client.py
 # Hệ thống sẽ điều khiển trực tiếp còi qua GPIO17 và dùng cam V4L2.
 ```
 
@@ -88,7 +88,7 @@ python client_pi.py
  ┃ ┣ 📜 chart.html
  ┃ ┗ 📜 fallchart.html
  ┣ 📜 server.py             # File Backend chính xử lý AI
- ┣ 📜 client_pi.py          # File Client bắt hình & đẩy lên Sever
+ ┣ 📜 client.py             # File Client bắt hình & đẩy lên Sever
  ┣ 📜 requirements.txt      # Thông tin version thư viện bắt buộc
  ┗ 📜 README.md             # File hướng dẫn (bạn đang đọc)
 ```

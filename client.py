@@ -17,6 +17,7 @@ TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
 BUZZER_PIN = 17 
 if GPIO_AVAILABLE:
+    GPIO.setwarnings(False)
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(BUZZER_PIN, GPIO.OUT)
     GPIO.output(BUZZER_PIN, GPIO.HIGH)
@@ -75,12 +76,11 @@ def on_error(ws, error):
     print("WebSocket Error:", error)
 
 def on_close(ws, close_status_code, close_msg):
-    print("WebSocket Closed. Reconnecting in 3s...")
-    time.sleep(3)
-    stream_to_server()
+    print("WebSocket Closed.")
 
 def stream_to_server():
     def push_frames(ws):
+        print("Bắt đầu gửi luồng video lên Server...")
         while True:
             frame = None
             with frame_lock:
@@ -91,13 +91,22 @@ def stream_to_server():
                 try:
                     ws.send(buffer.tobytes(), opcode=websocket.ABNF.OPCODE_BINARY)
                 except websocket.WebSocketConnectionClosedException:
+                    print("Lỗi kết nối khi gửi frame")
                     break
             time.sleep(1/CAMERA_FPS)
 
+    def on_open_handler(w):
+        print(f"Đã kết nối thành công tới Server: {WS_URL}!")
+        threading.Thread(target=push_frames, args=(w,), daemon=True).start()
+
+    print(f"Đang cố gắng kết nối tới WebSocket Server: {WS_URL} ...")
     ws = websocket.WebSocketApp(WS_URL, on_message=on_message, on_error=on_error, on_close=on_close)
-    ws.on_open = lambda w: threading.Thread(target=push_frames, args=(w,), daemon=True).start()
+    ws.on_open = on_open_handler
     ws.run_forever()
 
 if __name__ == "__main__":
     threading.Thread(target=capture_frames, daemon=True).start()
-    stream_to_server()
+    while True:
+        stream_to_server()
+        print("Reconnecting to server in 3s...")
+        time.sleep(3)
