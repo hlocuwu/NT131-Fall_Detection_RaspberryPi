@@ -183,16 +183,19 @@ async def ws_web(websocket: WebSocket):
 
 # HTML pages and metrics (Same as before)
 @app.get("/", response_class=HTMLResponse)
-async def index(): return open('templates/index.html').read()
+async def index(): return open('templates/index.html', encoding='utf-8').read()
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(): return open('templates/login.html', encoding='utf-8').read()
 
 @app.get("/camera", response_class=HTMLResponse)
-async def camera_page(): return open('templates/camera_fast.html').read()
+async def camera_page(): return open('templates/camera.html', encoding='utf-8').read()
 
 @app.get("/chart", response_class=HTMLResponse)
-async def chart(): return open('templates/chart.html').read()
+async def chart(): return open('templates/chart.html', encoding='utf-8').read()
 
 @app.get("/fallchart", response_class=HTMLResponse)
-async def fallchart(): return open('templates/fallchart.html').read()
+async def fallchart(): return open('templates/fallchart.html', encoding='utf-8').read()
 
 @app.get("/trigger_feed")
 async def trigger_feed():

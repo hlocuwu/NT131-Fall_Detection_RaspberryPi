@@ -1,61 +1,348 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Giám sát</title>
+    <title>VILBE IoT - Live Monitor</title>
     <link rel="stylesheet" href="/custom/styles.css">
+    <style>
+        .monitor-grid {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 22px;
+            align-items: start;
+        }
+
+        .stream-frame {
+            width: 100%;
+            border-radius: 14px;
+            border: 2px solid rgba(0, 180, 216, 0.28);
+            aspect-ratio: 16 / 9;
+            object-fit: cover;
+            background: linear-gradient(135deg, rgba(0, 180, 216, 0.12), rgba(0, 119, 182, 0.18));
+            display: block;
+        }
+
+        .stream-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-top: 14px;
+            flex-wrap: wrap;
+        }
+
+        .signal-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            border-radius: 999px;
+            padding: 6px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            border: 1px solid rgba(0, 180, 216, 0.24);
+            background: rgba(0, 180, 216, 0.08);
+            color: var(--text-secondary);
+        }
+
+        .signal-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: #ff4d6d;
+            box-shadow: 0 0 0 0 rgba(255, 77, 109, 0.45);
+            transition: all 0.25s ease;
+        }
+
+        .signal-pill.online .signal-dot {
+            background: #00b894;
+            animation: pulse 1.5s infinite;
+        }
+
+        .mini-metrics {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .metric-chip {
+            padding: 11px 12px;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            background: var(--glass-bg);
+        }
+
+        .metric-chip-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 6px;
+        }
+
+        .metric-chip-value {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .side-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .trigger-preview {
+            width: 100%;
+            border-radius: 12px;
+            border: 2px solid rgba(0, 180, 216, 0.24);
+            display: block;
+            min-height: 180px;
+            object-fit: cover;
+            background: rgba(0, 180, 216, 0.08);
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 9px;
+            margin-top: 12px;
+        }
+
+        .quick-btn {
+            border: 1px solid var(--glass-border);
+            background: var(--glass-bg);
+            color: var(--text-secondary);
+            border-radius: 10px;
+            padding: 9px 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .quick-btn:hover {
+            border-color: var(--neon-blue);
+            color: var(--neon-blue);
+        }
+
+        .quick-btn.danger {
+            border-color: rgba(255, 77, 109, 0.35);
+            background: rgba(255, 77, 109, 0.1);
+            color: #ff4d6d;
+        }
+
+        @media (max-width: 1080px) {
+            .monitor-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .mini-metrics {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .mini-metrics {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
-
-<header>
-    <div class="logo" onclick="location.href='/'">Nhóm 04</div>
-    <div class="buttons">
-        <button class="button active" onclick="location.href='/camera'">Giám sát</button>
-        <button class="button" onclick="location.href='/chart'">Hệ thống</button>
-        <button class="button" onclick="location.href='/fallchart'">Thống kê</button>
-    </div>
-</header>
-
-<div class="content">
-    <h2>Camera Stream (Real-Time WebSocket)</h2>
-    <div class="main-layout">
-        <div class="main-stream">
-            <img id="main-video" src="" alt="Video Stream" width="950" height="550" style="border: 5px solid rgb(255, 0, 0);">
-        </div>
-
-        <div class="trigger-panel">
-            <div class="trigger-frame">
-                <img id="trigger-image" src="/trigger_feed" alt="Trigger Frame" width="350" height="250">
+    <div class="app-wrapper">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <div class="logo-text">VILBE IoT</div>
+                <div class="logo-sub">Fall Detection System</div>
             </div>
-            <button class="trigger-button" onclick="resetTrigger()">RESET</button>
+            <div class="nav-section-title">Navigation</div>
+            <a class="nav-item" href="/"><span class="nav-icon">🏠</span> Dashboard</a>
+            <a class="nav-item active" href="/camera"><span class="nav-icon">📷</span> Live Monitor</a>
+            <a class="nav-item" href="/chart"><span class="nav-icon">📊</span> System Metrics</a>
+            <a class="nav-item" href="/fallchart"><span class="nav-icon">📈</span> Fall Statistics</a>
+            <div class="sidebar-footer">2026 NT532.Q21 - Group 02 - UIT</div>
+        </aside>
+
+        <div class="main-wrapper">
+            <header class="app-header">
+                <span class="header-title">Live Monitor</span>
+                <div class="search-box">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" placeholder="Search stream notes...">
+                </div>
+                <div class="header-actions">
+                    <button class="theme-toggle" onclick="toggleTheme()">
+                        <span id="themeIcon">☀️</span>
+                        <span id="themeText">Light</span>
+                    </button>
+                    <div class="avatar" title="Admin">A</div>
+                </div>
+            </header>
+
+            <main class="page-content">
+                <div class="page-header">
+                    <div class="page-title">Real-time Camera Stream</div>
+                    <div class="page-breadcrumb">
+                        <span class="live-indicator"><span class="live-dot"></span>AI Inference Pipeline Online</span>
+                    </div>
+                </div>
+
+                <section class="monitor-grid">
+                    <article class="stream-card">
+                        <div class="section-header" style="margin-bottom: 14px;">
+                            <div>
+                                <div class="card-title">Main Camera Channel</div>
+                                <div class="card-subtitle">WebSocket feed from Raspberry Pi</div>
+                            </div>
+                            <span id="wsStatus" class="signal-pill"><span class="signal-dot"></span>RECONNECTING</span>
+                        </div>
+
+                        <img id="main-video" class="stream-frame" src="" alt="Real-time video stream">
+
+                        <div class="mini-metrics">
+                            <div class="metric-chip">
+                                <div class="metric-chip-label">Frame</div>
+                                <div id="frameCounter" class="metric-chip-value">0</div>
+                            </div>
+                            <div class="metric-chip">
+                                <div class="metric-chip-label">FPS</div>
+                                <div id="fpsCounter" class="metric-chip-value">0.0</div>
+                            </div>
+                            <div class="metric-chip">
+                                <div class="metric-chip-label">Last Update</div>
+                                <div id="lastUpdate" class="metric-chip-value">--:--:--</div>
+                            </div>
+                        </div>
+
+                        <div class="stream-toolbar">
+                            <span class="badge badge-active"><span class="badge-dot"></span>Live Feed Active</span>
+                            <button class="quick-btn" onclick="refreshSnapshot()">Refresh Trigger Snapshot</button>
+                        </div>
+                    </article>
+
+                    <aside class="side-stack">
+                        <article class="trigger-card">
+                            <div style="text-align:center;">
+                                <div class="card-title">Fall Trigger Frame</div>
+                                <div class="card-subtitle">Last event evidence image</div>
+                            </div>
+                            <img id="trigger-image" class="trigger-preview" src="/trigger_feed" alt="Trigger frame">
+                            <button class="btn-reset" onclick="resetTrigger()">RESET</button>
+                        </article>
+
+                        <article class="glass-card" style="padding: 18px;">
+                            <div class="card-title">Quick Actions</div>
+                            <div class="card-subtitle" style="margin-bottom: 10px;">Utility controls for monitoring</div>
+                            <div class="quick-actions">
+                                <button class="quick-btn" onclick="location.reload()">Reload Page</button>
+                                <button class="quick-btn" onclick="toggleTheme()">Toggle Theme</button>
+                                <button class="quick-btn" onclick="window.location.href='/chart'">Open Metrics</button>
+                                <button class="quick-btn danger" onclick="resetTrigger()">Clear Trigger</button>
+                            </div>
+                        </article>
+                    </aside>
+                </section>
+            </main>
         </div>
     </div>
-</div>
 
-<script>
-    // Live Base64 WebSocket replacement
-    const ws = new WebSocket(`ws://${window.location.host}/ws/web`);
-    const mainVideo = document.getElementById("main-video");
+    <script>
+        const mainVideo = document.getElementById('main-video');
+        const wsStatus = document.getElementById('wsStatus');
+        const frameCounter = document.getElementById('frameCounter');
+        const fpsCounter = document.getElementById('fpsCounter');
+        const lastUpdate = document.getElementById('lastUpdate');
 
-    ws.onmessage = function(event) {
-        const data = JSON.parse(event.data);
-        if (data.image) {
-            mainVideo.src = "data:image/jpeg;base64," + data.image;
+        let ws;
+        let frameCount = 0;
+        let lastFrameTs = null;
+        let reconnectTimer = null;
+
+        function setWsState(isOnline, label) {
+            wsStatus.classList.toggle('online', isOnline);
+            wsStatus.innerHTML = '<span class="signal-dot"></span>' + label;
         }
-    };
-    
-    // Fall trigger remains unchanged
-    function resetTrigger() {
-        const img = document.getElementById('trigger-image');
-        img.src = '/trigger_feed?' + new Date().getTime(); // Force reload to blank image
-    }
 
-    setInterval(() => {
-        const img = document.getElementById('trigger-image');
-        img.src = '/trigger_feed?' + new Date().getTime();
-    }, 1000);
-</script>
+        function connectWebSocket() {
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+            ws = new WebSocket(`${wsProtocol}://${window.location.host}/ws/web`);
+            setWsState(false, 'CONNECTING');
 
+            ws.onopen = function () {
+                setWsState(true, 'CONNECTED');
+            };
+
+            ws.onmessage = function (event) {
+                const payload = JSON.parse(event.data);
+                if (!payload.image) {
+                    return;
+                }
+
+                const now = Date.now();
+                frameCount += 1;
+                frameCounter.textContent = String(frameCount);
+                lastUpdate.textContent = new Date(now).toLocaleTimeString('en-GB');
+
+                if (lastFrameTs !== null) {
+                    const dt = now - lastFrameTs;
+                    if (dt > 0) {
+                        fpsCounter.textContent = (1000 / dt).toFixed(1);
+                    }
+                }
+                lastFrameTs = now;
+
+                mainVideo.src = 'data:image/jpeg;base64,' + payload.image;
+            };
+
+            ws.onclose = function () {
+                setWsState(false, 'RECONNECTING');
+                if (reconnectTimer) {
+                    clearTimeout(reconnectTimer);
+                }
+                reconnectTimer = setTimeout(connectWebSocket, 1800);
+            };
+
+            ws.onerror = function () {
+                setWsState(false, 'CONNECTION ERROR');
+            };
+        }
+
+        function refreshSnapshot() {
+            const image = document.getElementById('trigger-image');
+            image.src = '/trigger_feed?' + Date.now();
+        }
+
+        function resetTrigger() {
+            refreshSnapshot();
+        }
+
+        setInterval(refreshSnapshot, 1000);
+
+        function getTheme() {
+            return localStorage.getItem('theme') || 'light';
+        }
+
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            const isDark = theme === 'dark';
+            document.getElementById('themeIcon').textContent = isDark ? '🌙' : '☀️';
+            document.getElementById('themeText').textContent = isDark ? 'Dark' : 'Light';
+        }
+
+        function toggleTheme() {
+            const nextTheme = getTheme() === 'light' ? 'dark' : 'light';
+            localStorage.setItem('theme', nextTheme);
+            applyTheme(nextTheme);
+        }
+
+        window.onload = function () {
+            applyTheme(getTheme());
+            connectWebSocket();
+            refreshSnapshot();
+        };
+    </script>
 </body>
 </html>

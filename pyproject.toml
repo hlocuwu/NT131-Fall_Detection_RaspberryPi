@@ -1,0 +1,28 @@
+[project]
+name = "ten-du-an-cua-ban"
+version = "0.1.0"
+description = "Mô tả ngắn gọn về dự án"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi==0.135.3",
+    "python-multipart==0.0.26",
+    "uvicorn==0.44.0",
+    "opencv-python==4.13.0.92",
+    "numpy==2.2.6",
+    "mediapipe==0.10.14",
+    "google-cloud-storage==2.8.0",
+    "google-api-core==2.11.1",
+    "protobuf",
+    "requests==2.25.1",
+    "psutil==7.2.2",
+    "python-dotenv==1.2.2",
+    "websocket-client==1.8.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+package = false

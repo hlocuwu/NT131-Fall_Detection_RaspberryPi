@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VILBE IoT — Sign In</title>
+    <link rel="stylesheet" href="/custom/styles.css?v=3">
+</head>
+<body>
+    <div class="auth-page">
+
+        <!-- ══ LEFT HERO PANEL ══════════════════════════════ -->
+        <aside class="auth-hero">
+            <div class="auth-hero-orb auth-hero-orb-1"></div>
+            <div class="auth-hero-orb auth-hero-orb-2"></div>
+            <div class="auth-hero-orb auth-hero-orb-3"></div>
+
+            <div class="auth-brand-top">
+                <span class="auth-brand-name">VILBE IoT</span>
+                <span class="auth-system-badge"><span class="live-dot"></span>System Online</span>
+            </div>
+
+            <div class="auth-hero-body">
+                <h1 class="auth-hero-title">Fall Detection<br>Monitoring System</h1>
+                <p class="auth-hero-desc-text">Real-time AI-powered fall detection using computer vision and pose estimation running on Raspberry Pi.</p>
+
+                <ul class="auth-feature-list">
+                    <li class="auth-feature-item">
+                        <span class="auth-feature-icon">📷</span>
+                        <div class="auth-feature-text">
+                            <strong>Live Camera Stream</strong>
+                            <span>Real-time WebSocket video feed from Pi</span>
+                        </div>
+                    </li>
+                    <li class="auth-feature-item">
+                        <span class="auth-feature-icon">🤖</span>
+                        <div class="auth-feature-text">
+                            <strong>AI Pose Detection</strong>
+                            <span>MediaPipe-powered skeleton inference</span>
+                        </div>
+                    </li>
+                    <li class="auth-feature-item">
+                        <span class="auth-feature-icon">📊</span>
+                        <div class="auth-feature-text">
+                            <strong>Analytics Dashboard</strong>
+                            <span>CPU, memory &amp; fall statistics</span>
+                        </div>
+                    </li>
+                    <li class="auth-feature-item">
+                        <span class="auth-feature-icon">☁️</span>
+                        <div class="auth-feature-text">
+                            <strong>Cloud Storage</strong>
+                            <span>Auto-upload fall events to Google Cloud</span>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <footer class="auth-hero-footer">
+                © 2026 &nbsp;·&nbsp; NT532 Internet of Things &nbsp;·&nbsp; NT532.Q21 &nbsp;·&nbsp; UIT
+            </footer>
+        </aside>
+
+        <!-- ══ RIGHT FORM PANEL ══════════════════════════════ -->
+        <div class="auth-panel">
+            <div class="auth-panel-inner">
+
+                <!-- Theme toggle (above card) -->
+                <div class="auth-theme-btn">
+                    <button class="theme-toggle" onclick="toggleTheme()">
+                        <span id="themeIconLogin">☀️</span>
+                        <span id="themeTextLogin">Light</span>
+                    </button>
+                </div>
+
+                <!-- Mobile logo (hidden on desktop) -->
+                <div class="auth-mobile-logo">
+                    <span class="auth-brand-name" style="font-size:24px;color:var(--neon-dark);">VILBE IoT</span>
+                    <p style="font-size:12px;color:var(--text-muted);margin-top:4px;">Fall Detection Monitoring System</p>
+                </div>
+
+                <!-- Glass card wrapper — mirrors the rest of the UI -->
+                <div class="auth-form-card">
+                    <!-- Header -->
+                    <div class="auth-panel-header">
+                        <h2 id="formTitle">Welcome back</h2>
+                        <p id="formSubtitle" class="login-desc">Sign in to access the monitoring dashboard</p>
+                    </div>
+
+                    <!-- Tab switcher -->
+                    <div class="auth-tabs">
+                        <button type="button" id="signInTab" class="auth-tab active">Sign In</button>
+                        <button type="button" id="signUpTab" class="auth-tab">Create Account</button>
+                    </div>
+
+                    <!-- Messages -->
+                    <div id="errorMessage" class="error-msg"></div>
+                    <div id="successMessage" class="success-msg"></div>
+
+                    <div id="loginForm">
+                        <!-- ── Sign In ── -->
+                        <form id="signInForm" novalidate>
+                            <div class="form-group">
+                                <label for="signin-email">Email Address</label>
+                                <input id="signin-email" name="email" type="email" class="form-control"
+                                    placeholder="your-email@example.com" autocomplete="email" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="signin-password">Password</label>
+                                <div class="input-wrapper">
+                                    <input id="signin-password" name="password" type="password" class="form-control"
+                                        placeholder="Enter your password" autocomplete="current-password" required>
+                                    <button type="button" class="input-eye" onclick="togglePwd('signin-password',this)" tabindex="-1" title="Show / hide">👁</button>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn-primary" id="signInBtn">Sign In</button>
+                        </form>
+
+                        <!-- ── Sign Up ── -->
+                        <form id="signUpForm" class="hidden" novalidate>
+                            <div class="form-group">
+                                <label for="signup-name">Full Name</label>
+                                <input id="signup-name" name="fullName" type="text" class="form-control"
+                                    placeholder="Your full name" autocomplete="name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="signup-email">Email Address</label>
+                                <input id="signup-email" name="email" type="email" class="form-control"
+                                    placeholder="your-email@example.com" autocomplete="email" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="signup-password">Password</label>
+                                <div class="input-wrapper">
+                                    <input id="signup-password" name="password" type="password" class="form-control"
+                                        placeholder="At least 6 characters" autocomplete="new-password" required>
+                                    <button type="button" class="input-eye" onclick="togglePwd('signup-password',this)" tabindex="-1" title="Show / hide">👁</button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="signup-confirm">Confirm Password</label>
+                                <div class="input-wrapper">
+                                    <input id="signup-confirm" name="confirmPassword" type="password" class="form-control"
+                                        placeholder="Re-enter your password" autocomplete="new-password" required>
+                                    <button type="button" class="input-eye" onclick="togglePwd('signup-confirm',this)" tabindex="-1" title="Show / hide">👁</button>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn-primary" id="signUpBtn">Create Account</button>
+                        </form>
+
+                        <div class="auth-separator"><span>or continue with</span></div>
+
+                        <button id="googleLoginBtn" type="button" class="btn-google">
+                            <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="flex-shrink:0;">
+                                <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908C16.658 14.148 17.64 11.84 17.64 9.2z" fill="#4285F4"/>
+                                <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+                                <path d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z" fill="#FBBC05"/>
+                                <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 7.294C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+                            </svg>
+                            Continue with Google
+                        </button>
+                    </div>
+                </div>
+
+                <p class="auth-panel-footer">© 2026 NT532 · Internet of Things · NT532.Q21 · UIT</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function togglePwd(id, btn) {
+            const el = document.getElementById(id);
+            const show = el.type === 'password';
+            el.type = show ? 'text' : 'password';
+            btn.style.opacity = show ? '1' : '0.4';
+        }
+    </script>
+    <script type="module" src="/custom/login.js"></script>
+</body>
+</html>

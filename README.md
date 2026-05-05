@@ -53,12 +53,31 @@ GOOGLE_APPLICATION_CREDENTIALS=/path/to/your/gcp-service-account.json
 Chạy server trước để hệ thống lắng nghe và cung cấp trang web:
 
 ```bash
-uvicorn server:app --host 0.0.0.0 --port 8000 --reload
+uv run uvicorn server:app --host 0.0.0.0 --port 8000 --reload
 ```
 Mở trình duyệt, truy cập `http://localhost:8000` hoặc `http://127.0.0.1:8000`.
-- **Tài khoản đăng nhập Website:**
-  - Username: `admin`
-  - Password: `password`
+
+### 🔐 Xác Thực Người Dùng Với Firebase (Email/Password + Google)
+Website đã được tách riêng trang đăng nhập tại `http://localhost:8000/login` và dùng Firebase Authentication thực sự.
+
+1. Tạo project trên Firebase Console.
+2. Bật các phương thức đăng nhập trong Firebase Authentication:
+  - Email/Password
+  - Google
+3. Tạo Firestore Database (mode test/dev trước, sau đó siết rule theo production).
+4. Copy file cấu hình mẫu:
+
+```bash
+copy custom\firebase-config.example.js custom\firebase-config.js
+```
+
+5. Điền thông tin Firebase app vào file `custom/firebase-config.js`.
+
+Sau khi cấu hình xong:
+- User có thể `Create Account` để tạo tài khoản mới.
+- User có thể `Sign In` bằng Email/Password.
+- User có thể đăng nhập bằng `Continue with Google`.
+- Hồ sơ người dùng được lưu trong Firestore collection `users`.
 
 ### 🔵 Khởi Chạy Client (Desktop Camera HOẶC Raspberry Pi)
 Mở một cửa sổ Terminal/Command Prompt thứ 2 và chạy client:
@@ -83,7 +102,8 @@ python client.py
  ┣ 📂 custom/
  ┃ ┗ 📜 styles.css          # Style giao diện website
  ┣ 📂 templates/            # Các trang HTML Dashboard
- ┃ ┣ 📜 index.html          # Trang chủ / Đăng nhập
+ ┃ ┣ 📜 login.html          # Trang đăng nhập Firebase
+ ┃ ┣ 📜 index.html          # Dashboard (đã yêu cầu đăng nhập)
  ┃ ┣ 📜 camera.html
  ┃ ┣ 📜 chart.html
  ┃ ┗ 📜 fallchart.html
