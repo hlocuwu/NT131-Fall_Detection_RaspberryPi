@@ -6,6 +6,41 @@
   <title>VILBE IoT &mdash; Fall Statistics</title>
   <link rel="stylesheet" href="/custom/styles.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .stats-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .month-select {
+      padding: 8px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--glass-border);
+      background: var(--glass-bg);
+      color: var(--text-primary);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
+    }
+    .month-select:focus {
+      border-color: var(--neon-blue);
+    }
+    .stat-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: 999px;
+      background: rgba(0,180,216,0.12);
+      border: 1px solid rgba(0,180,216,0.28);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--neon-blue);
+    }
+  </style>
 </head>
 <body>
 
@@ -20,7 +55,7 @@
     <a class="nav-item" href="/camera"><span class="nav-icon">&#128247;</span> Live Monitor</a>
     <a class="nav-item" href="/chart"><span class="nav-icon">&#128202;</span> System Metrics</a>
     <a class="nav-item active" href="/fallchart"><span class="nav-icon">&#128201;</span> Fall Statistics</a>
-    <div class="sidebar-footer">&copy; 2024 NT131 &bull; Group 04 &bull; UIT</div>
+    <div class="sidebar-footer">&copy; 2026 NT532.Q21 &bull; Group 02 &bull; UIT</div>
   </aside>
 
   <div class="main-wrapper">
@@ -31,10 +66,6 @@
         <input type="text" placeholder="Search...">
       </div>
       <div class="header-actions">
-        <div class="notif-wrapper">
-          <div class="icon-btn" title="Notifications">&#128276;</div>
-          <div class="notif-badge"></div>
-        </div>
         <button class="theme-toggle" onclick="toggleTheme()">
           <span id="themeIcon">&#9728;&#65039;</span>
           <span id="themeText">Light</span>
@@ -46,7 +77,16 @@
     <main class="page-content">
       <div class="page-header">
         <div class="page-title">Fall Detection Analytics</div>
-        <div class="page-breadcrumb" id="dateDisplay">Loading date...</div>
+        <div class="page-breadcrumb" id="dateDisplay">Loading...</div>
+      </div>
+
+      <div class="stats-toolbar">
+        <label style="font-size:13px;font-weight:600;color:var(--text-secondary);">View month:</label>
+        <select id="monthSelect" class="month-select" onchange="onMonthChange()">
+          <option value="">Loading...</option>
+        </select>
+        <span class="stat-pill">&#128202; Month total: <span id="monthTotal">—</span> events</span>
+        <span class="stat-pill">&#128200; All time: <span id="allTotal">—</span> events</span>
       </div>
 
       <div class="chart-grid">
@@ -57,7 +97,7 @@
         </div>
         <div class="chart-card">
           <div class="card-title">Daily Distribution</div>
-          <div class="card-subtitle">This month&apos;s fall events by day</div>
+          <div class="card-subtitle" id="dailySubtitle">Fall events by day</div>
           <canvas id="dailyChart" style="max-height:350px;"></canvas>
         </div>
       </div>
@@ -71,7 +111,7 @@
   function applyTheme(t) {
     document.documentElement.setAttribute('data-theme', t);
     var dark = t === 'dark';
-    document.getElementById('themeIcon').textContent = dark ? '\u{1F319}' : '\u2600\uFE0F';
+    document.getElementById('themeIcon').textContent = dark ? '\u{1F319}' : '☀️';
     document.getElementById('themeText').textContent = dark ? 'Dark' : 'Light';
   }
   function toggleTheme() {
@@ -90,7 +130,7 @@
              ticks: { stepSize: 1, precision: 0, color: tc },
              grid: { color: gc },
              title: { display: true, text: yTitle || 'Falls', color: tc } },
-        x: { ticks: { color: tc }, grid: { color: gc },
+        x: { ticks: { color: tc, maxRotation: 45 }, grid: { color: gc },
              title: { display: true, text: xTitle || '', color: tc } }
       }
     };
@@ -98,23 +138,67 @@
 
   var hourlyChart, dailyChart;
 
-  function updateCharts() {
-    fetch('/fall_stats').then(function(r){ return r.json(); }).then(function(data) {
-      if (hourlyChart) { hourlyChart.data.labels = Object.keys(data.hourly); hourlyChart.data.datasets[0].data = Object.values(data.hourly); hourlyChart.update(); }
-      if (dailyChart)  { dailyChart.data.labels  = Object.keys(data.daily);  dailyChart.data.datasets[0].data  = Object.values(data.daily);  dailyChart.update(); }
+  function formatMonthLabel(ym) {
+    var parts = ym.split('-');
+    var d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+  }
+
+  function loadData(month) {
+    var url = '/fall_stats' + (month ? '?month=' + month : '');
+    fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+      var isCurrentMonth = data.current_month === new Date().toISOString().slice(0, 7);
+
+      document.getElementById('monthTotal').textContent = data.month_total;
+      document.getElementById('allTotal').textContent   = data.total;
+      document.getElementById('dailySubtitle').textContent =
+        formatMonthLabel(data.current_month) + ' — falls by day';
+      document.getElementById('hourlySubtitle').textContent =
+        isCurrentMonth ? 'Today — falls by hour' : 'Today\'s data (current month only)';
+
+      if (hourlyChart) {
+        hourlyChart.data.labels                  = Object.keys(data.hourly);
+        hourlyChart.data.datasets[0].data        = Object.values(data.hourly);
+        hourlyChart.update();
+      }
+      if (dailyChart) {
+        dailyChart.data.labels                   = Object.keys(data.daily);
+        dailyChart.data.datasets[0].data         = Object.values(data.daily);
+        dailyChart.update();
+      }
+    });
+  }
+
+  function onMonthChange() {
+    var sel = document.getElementById('monthSelect');
+    loadData(sel.value);
+  }
+
+  function populateMonthDropdown(months, currentMonth) {
+    var sel = document.getElementById('monthSelect');
+    sel.innerHTML = '';
+    months.forEach(function(m) {
+      var opt = document.createElement('option');
+      opt.value = m;
+      opt.textContent = formatMonthLabel(m);
+      if (m === currentMonth) opt.selected = true;
+      sel.appendChild(opt);
     });
   }
 
   window.onload = function() {
     applyTheme(getTheme());
     var dark = getTheme() === 'dark';
-    var now = new Date();
-    document.getElementById('dateDisplay').textContent =
-      'Date: ' + now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    document.getElementById('hourlySubtitle').textContent =
-      'Today (' + now.toLocaleDateString() + ') — fall events by hour';
+    var now  = new Date();
 
-    fetch('/fall_stats').then(function(r){ return r.json(); }).then(function(data) {
+    document.getElementById('dateDisplay').textContent =
+      now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    fetch('/fall_stats').then(function(r) { return r.json(); }).then(function(data) {
+      populateMonthDropdown(data.months, data.current_month);
+      document.getElementById('monthTotal').textContent = data.month_total;
+      document.getElementById('allTotal').textContent   = data.total;
+
       hourlyChart = new Chart(document.getElementById('hourlyChart'), {
         type: 'bar',
         data: { labels: Object.keys(data.hourly), datasets: [{
@@ -135,7 +219,7 @@
         options: chartOpts(dark, 'Day of Month', 'Number of Falls')
       });
 
-      setInterval(updateCharts, 60000);
+      setInterval(function() { loadData(document.getElementById('monthSelect').value); }, 60000);
     });
   };
 </script>

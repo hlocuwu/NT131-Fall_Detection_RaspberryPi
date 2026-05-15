@@ -37,6 +37,20 @@ mp_pose    = mp.solutions.pose
 mp_drawing = mp.solutions.drawing_utils
 pose       = mp_pose.Pose(min_detection_confidence=0.6, min_tracking_confidence=0.6)
 
+# ── Fall log persistence ──────────────────────────────────────────────────────
+FALL_LOG_FILE = "fall_log.json"
+
+def _load_fall_log() -> list[datetime]:
+    try:
+        with open(FALL_LOG_FILE, encoding="utf-8") as f:
+            return [datetime.fromisoformat(ts) for ts in json.load(f)]
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+def _save_fall_log(log: list[datetime]):
+    with open(FALL_LOG_FILE, "w", encoding="utf-8") as f:
+        json.dump([ts.isoformat() for ts in log], f, indent=2)
+
 # ── State ─────────────────────────────────────────────────────────────────────
 latest_frame:   bytes | None    = None
 fall_frame:     bytes | None    = None
@@ -45,7 +59,9 @@ fall_counter:   int             = 0
 body_angle:     str             = "front"
 metrics_data:   dict            = {"cpu": 0, "memory": 0}
 hip_history:    deque           = deque(maxlen=4)
-fall_log:       list[datetime]  = []
+fall_log:       list[datetime]  = _load_fall_log()
+
+print(f"[FALL LOG] Loaded {len(fall_log)} past events")
 
 frame_queue: asyncio.Queue = asyncio.Queue(maxsize=1)
 web_clients: set           = set()
@@ -127,6 +143,7 @@ def process_frame(img_bytes: bytes) -> tuple[bytes | None, bool]:
                 last_fall_time = current_time
                 fall_counter   = 0
                 fall_log.append(datetime.now())
+                _save_fall_log(fall_log)
                 print(f"[FALL] {status}")
                 _, buf = cv2.imencode(".jpg", img)
                 fall_frame = buf.tobytes()
@@ -168,7 +185,7 @@ async def ai_inference_worker():
                 for ws in web_clients:
                     try:    await ws.send_text(msg)
                     except: dead.add(ws)
-                web_clients -= dead
+                web_clients.difference_update(dead)
         except Exception as e:
             print(f"[WORKER] {e}")
 
@@ -237,22 +254,42 @@ async def get_metrics():
     return metrics_data
 
 @app.get("/fall_stats")
-async def fall_stats():
-    now        = datetime.now()
-    today      = now.date()
-    this_month = (now.year, now.month)
+async def fall_stats(month: str | None = None):
+    now = datetime.now()
+
+    # Parse requested month, default to current
+    try:
+        target = datetime.strptime(month, "%Y-%m") if month else now
+    except ValueError:
+        target = now
+    target_month = (target.year, target.month)
 
     hourly        = {f"{h:02d}:00": 0 for h in range(24)}
-    days_in_month = calendar.monthrange(*this_month)[1]
+    days_in_month = calendar.monthrange(*target_month)[1]
     daily         = {str(d): 0 for d in range(1, days_in_month + 1)}
 
+    month_total = 0
     for ts in fall_log:
-        if ts.date() == today:
-            hourly[f"{ts.hour:02d}:00"] += 1
-        if (ts.year, ts.month) == this_month:
+        if (ts.year, ts.month) == target_month:
             daily[str(ts.day)] += 1
+            month_total += 1
+            # Hourly chỉ show khi xem tháng hiện tại (ngày hôm nay)
+            if ts.date() == now.date():
+                hourly[f"{ts.hour:02d}:00"] += 1
 
-    return {"hourly": hourly, "daily": daily, "total": len(fall_log)}
+    # Danh sách tháng có dữ liệu
+    available = sorted({f"{ts.year:04d}-{ts.month:02d}" for ts in fall_log}, reverse=True)
+    if not available:
+        available = [now.strftime("%Y-%m")]
+
+    return {
+        "hourly":    hourly,
+        "daily":     daily,
+        "total":     len(fall_log),
+        "month_total": month_total,
+        "months":    available,
+        "current_month": f"{target_month[0]:04d}-{target_month[1]:02d}",
+    }
 
 if __name__ == "__main__":
     import uvicorn

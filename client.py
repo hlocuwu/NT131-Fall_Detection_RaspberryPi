@@ -65,13 +65,19 @@ def capture_frames():
 
 # ── Metrics ───────────────────────────────────────────────────────────────────
 def send_metrics():
+    fail_count = 0
     while True:
         try:
             data = {"cpu": psutil.cpu_percent(interval=1), "memory": psutil.virtual_memory().percent}
             requests.post(f"{SERVER_URL}/metrics", json=data, timeout=5)
-        except Exception as e:
-            print(f"[METRICS] Error: {e}")
-        time.sleep(2)
+            if fail_count > 0:
+                print("[METRICS] Reconnected")
+            fail_count = 0
+        except Exception:
+            fail_count += 1
+            if fail_count == 1:
+                print("[METRICS] Server unreachable, retrying silently...")
+        time.sleep(2 if fail_count == 0 else min(30, 2 * fail_count))
 
 # ── WebSocket ─────────────────────────────────────────────────────────────────
 def on_message(ws, message):
