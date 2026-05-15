@@ -15,10 +15,10 @@
 
         .stream-frame {
             width: 100%;
+            height: auto;
             border-radius: 14px;
             border: 2px solid rgba(0, 180, 216, 0.28);
-            aspect-ratio: 16 / 9;
-            object-fit: cover;
+            object-fit: contain;
             background: linear-gradient(135deg, rgba(0, 180, 216, 0.12), rgba(0, 119, 182, 0.18));
             display: block;
         }
@@ -233,16 +233,6 @@
                             <button class="btn-reset" onclick="resetTrigger()">RESET</button>
                         </article>
 
-                        <article class="glass-card" style="padding: 18px;">
-                            <div class="card-title">Quick Actions</div>
-                            <div class="card-subtitle" style="margin-bottom: 10px;">Utility controls for monitoring</div>
-                            <div class="quick-actions">
-                                <button class="quick-btn" onclick="location.reload()">Reload Page</button>
-                                <button class="quick-btn" onclick="toggleTheme()">Toggle Theme</button>
-                                <button class="quick-btn" onclick="window.location.href='/chart'">Open Metrics</button>
-                                <button class="quick-btn danger" onclick="resetTrigger()">Clear Trigger</button>
-                            </div>
-                        </article>
                     </aside>
                 </section>
             </main>

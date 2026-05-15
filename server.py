@@ -1,175 +1,194 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-import time, cv2, numpy as np, mediapipe as mp, json, asyncio
-from io import BytesIO
-from google.cloud import storage
-from collections import defaultdict
+from collections import deque
 from datetime import datetime
-import calendar, os, base64
+from io import BytesIO
+from dotenv import load_dotenv
+from google.cloud import storage
+import asyncio, base64, calendar, json, os, threading, time
+import cv2, numpy as np, mediapipe as mp, requests
 
+load_dotenv()
+
+# ── Telegram ──────────────────────────────────────────────────────────────────
+TELEGRAM_TOKEN   = os.getenv("TELEGRAM_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+
+def send_telegram_alert(message: str):
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
+        print("[TELEGRAM] Skipped — TOKEN or CHAT_ID not set")
+        return
+    try:
+        resp = requests.post(
+            f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
+            data={"chat_id": TELEGRAM_CHAT_ID, "text": message},
+            timeout=10,
+        )
+        print("[TELEGRAM] Sent" if resp.ok else f"[TELEGRAM] Failed: {resp.status_code}")
+    except Exception as e:
+        print(f"[TELEGRAM] Error: {e}")
+
+# ── App & MediaPipe ───────────────────────────────────────────────────────────
 app = FastAPI()
 app.mount("/custom", StaticFiles(directory="custom"), name="custom")
 
-# Pose configuration
-mp_pose = mp.solutions.pose
+mp_pose    = mp.solutions.pose
 mp_drawing = mp.solutions.drawing_utils
-pose = mp_pose.Pose(min_detection_confidence=0.6, min_tracking_confidence=0.6)
+pose       = mp_pose.Pose(min_detection_confidence=0.6, min_tracking_confidence=0.6)
 
-# Global States
-latest_frame = None
-fall_frame = None
-last_fall_time = 0
-fall_counter = 0
-body_angle = 'front'
-metrics_data = {"cpu": 0, "memory": 0}
+# ── State ─────────────────────────────────────────────────────────────────────
+latest_frame:   bytes | None    = None
+fall_frame:     bytes | None    = None
+last_fall_time: float           = 0.0
+fall_counter:   int             = 0
+body_angle:     str             = "front"
+metrics_data:   dict            = {"cpu": 0, "memory": 0}
+hip_history:    deque           = deque(maxlen=4)
+fall_log:       list[datetime]  = []
 
-# Drop-frame Buffer Queue (size 1)
-frame_queue = asyncio.Queue(maxsize=1)
-# Active Web UI connections
-web_clients = set()
+frame_queue: asyncio.Queue = asyncio.Queue(maxsize=1)
+web_clients: set           = set()
 
-# Utility functions (Same as before)
-PARA_S_H_1, PARA_S_H_2, PARA_H_F = 1.15, 0.85, 0.6
-FALL_DETECTION_FRAMES, fall_cooldown = 5, 5
+FALL_DETECTION_FRAMES = 3
+FALL_COOLDOWN         = 5
 
-def log_fall_event_to_gcs(image_bytes: bytes, timestamp: float):
-    readable_time = time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime(timestamp))
+# ── Storage ───────────────────────────────────────────────────────────────────
+def log_fall_event(image_bytes: bytes, timestamp: float):
+    label = time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime(timestamp))
     try:
-        client = storage.Client()
-        bucket = client.bucket("fall-log-data") 
-        bucket.blob(f"fall_events/{readable_time}.jpg").upload_from_string(image_bytes, content_type="image/jpeg")
-        bucket.blob(f"fall_events/{readable_time}.json").upload_from_string(json.dumps({"event": "fall_detected", "timestamp": readable_time}, indent=2), content_type="application/json")
-        print(f"[GCS] Uploaded fall image at {readable_time}")
-    except Exception as e:
-        if not os.path.exists("fall_events"): os.makedirs("fall_events")
-        with open(f"fall_events/{readable_time}.jpg", "wb") as f: f.write(image_bytes)
-        print(f"[LOCAL] Saved fall image locally")
+        bucket = storage.Client().bucket("fall-log-data")
+        bucket.blob(f"fall_events/{label}.jpg").upload_from_string(image_bytes, content_type="image/jpeg")
+        bucket.blob(f"fall_events/{label}.json").upload_from_string(
+            json.dumps({"event": "fall_detected", "timestamp": label}, indent=2),
+            content_type="application/json",
+        )
+        print(f"[GCS] Uploaded {label}")
+    except Exception:
+        os.makedirs("fall_events", exist_ok=True)
+        with open(f"fall_events/{label}.jpg", "wb") as f:
+            f.write(image_bytes)
+        print(f"[LOCAL] Saved fall_events/{label}.jpg")
 
-def determine_body_orientation(landmarks):
-    shoulder_wide = abs(landmarks[11][0] - landmarks[12][0])
-    s_h_high = abs((landmarks[23][1] + landmarks[24][1] - landmarks[11][1] - landmarks[12][1]) / 2)
-    rate1 = shoulder_wide / s_h_high if s_h_high > 0 else 0
-    if 0.2 < rate1 < 0.4: return "sideway slight"
-    elif rate1 < 0.2: return "sideway whole"
+# ── Fall detection ────────────────────────────────────────────────────────────
+def determine_body_orientation(lm) -> str:
+    shoulder_wide = abs(lm[11][0] - lm[12][0])
+    s_h_high = abs((lm[23][1] + lm[24][1] - lm[11][1] - lm[12][1]) / 2)
+    rate = shoulder_wide / s_h_high if s_h_high > 0 else 0
+    if rate < 0.2: return "sideway whole"
+    if rate < 0.4: return "sideway slight"
     return "front"
 
-def detect_fall(landmarks):
-    s_h_high = abs((landmarks[23][1] + landmarks[24][1] - landmarks[11][1] - landmarks[12][1]) / 2)
-    s_h_long = np.sqrt(((landmarks[23][1] + landmarks[24][1] - landmarks[11][1] - landmarks[12][1]) / 2)**2 + 
-                       ((landmarks[23][0] + landmarks[24][0] - landmarks[11][0] - landmarks[12][0]) / 2)**2)
-    h_f_high = ((landmarks[28][1] + landmarks[27][1] - landmarks[24][1] - landmarks[23][1]) / 2)
-    h_f_long = np.sqrt(((landmarks[28][1] + landmarks[27][1] - landmarks[24][1] - landmarks[23][1]) / 2)**2 + 
-                       ((landmarks[28][0] + landmarks[27][0] - landmarks[24][0] - landmarks[23][0]) / 2)**2)
-    
-    if s_h_high < s_h_long * PARA_S_H_1 and s_h_high > s_h_long * PARA_S_H_2: return False, "Not Fall"
-    elif h_f_high < PARA_H_F * h_f_long: return True, "Fall Detected"
-    return False, "Bend Over"
+def detect_fall(lm) -> tuple[bool, str]:
+    sh_y  = (lm[11][1] + lm[12][1]) / 2
+    sh_x  = (lm[11][0] + lm[12][0]) / 2
+    hip_y = (lm[23][1] + lm[24][1]) / 2
+    hip_x = (lm[23][0] + lm[24][0]) / 2
+    spine_len = np.sqrt((sh_x - hip_x)**2 + (sh_y - hip_y)**2)
 
-def process_frame(img_bytes):
+    angle = np.degrees(np.arccos(np.clip(abs(sh_y - hip_y) / spine_len, 0, 1))) if spine_len > 0.01 else 0.0
+    nose_near = lm[0][1] > hip_y - 0.05
+
+    hip_history.append(hip_y)
+    velocity = (hip_history[-1] - hip_history[0]) if len(hip_history) >= 2 else 0.0
+
+    is_fall = (
+        angle > 65
+        or (angle > 45 and nose_near and velocity > 0.008)
+        or (velocity > 0.025 and angle > 30)
+    )
+    status = f"Fall! {angle:.0f}deg v={velocity:.3f}" if is_fall else f"Normal {angle:.0f}deg"
+    return is_fall, status
+
+# ── Frame processing ──────────────────────────────────────────────────────────
+def process_frame(img_bytes: bytes) -> tuple[bytes | None, bool]:
     global fall_counter, last_fall_time, fall_frame, body_angle
-    
-    try:
-        np_img = np.frombuffer(img_bytes, np.uint8)
-        img = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
-        if img is None: 
-            print("Failed to decode frame")
-            return None, False
-        
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        results = pose.process(img_rgb)
-        
-        is_falling_now = False
-        current_time = time.time()
-        status_message = "Normal"
-        
-        if results.pose_landmarks:
-            mp_drawing.draw_landmarks(img, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
-            lst = [(i.x, i.y, i.z, i.visibility) for i in results.pose_landmarks.landmark]
-            body_angle = determine_body_orientation(lst)
-            is_fall, fall_status = detect_fall(lst)
-            status_message = fall_status
-            
-            if is_fall:
-                fall_counter += 1
-                if fall_counter >= FALL_DETECTION_FRAMES and current_time - last_fall_time > fall_cooldown:
-                    is_falling_now = True
-                    last_fall_time = current_time
-                    print(f"!!! FALL DETECTED !!! - {fall_status}")
-                    _, jpeg_fall = cv2.imencode('.jpg', img)
-                    fall_frame = jpeg_fall.tobytes()
-                    # Run GCS upload async in background
-                    asyncio.get_event_loop().run_in_executor(None, log_fall_event_to_gcs, fall_frame, current_time)
-                    fall_counter = 0
-            else:
-                fall_counter = max(0, fall_counter - 1)
 
-        cv2.rectangle(img, (0, 0), (225, 130), (245, 117, 16), -1)
-        cv2.putText(img, 'Fall Counter', (15, 12), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
-        cv2.putText(img, str(fall_counter), (10, 65), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 2, cv2.LINE_AA)
-        cv2.putText(img, str(body_angle), (10, 110), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
-        cv2.putText(img, status_message, (10, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA)
-
-        _, jpeg = cv2.imencode('.jpg', img, [int(cv2.IMWRITE_JPEG_QUALITY), 65])
-        return jpeg.tobytes(), is_falling_now
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
+    np_img = np.frombuffer(img_bytes, np.uint8)
+    img    = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
+    if img is None:
         return None, False
 
-# ---------- BACKGROUND AI WORKER ----------
+    results      = pose.process(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+    is_falling   = False
+    current_time = time.time()
+    status       = "No pose"
+
+    if results.pose_landmarks:
+        mp_drawing.draw_landmarks(img, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+        lm = [(p.x, p.y, p.z, p.visibility) for p in results.pose_landmarks.landmark]
+        body_angle   = determine_body_orientation(lm)
+        is_fall, status = detect_fall(lm)
+
+        if is_fall:
+            fall_counter += 1
+            if fall_counter >= FALL_DETECTION_FRAMES and current_time - last_fall_time > FALL_COOLDOWN:
+                is_falling     = True
+                last_fall_time = current_time
+                fall_counter   = 0
+                fall_log.append(datetime.now())
+                print(f"[FALL] {status}")
+                _, buf = cv2.imencode(".jpg", img)
+                fall_frame = buf.tobytes()
+                threading.Thread(target=log_fall_event,      args=(fall_frame, current_time), daemon=True).start()
+                threading.Thread(target=send_telegram_alert, args=("⚠️ CẢNH BÁO: Phát hiện ngã! Vui lòng kiểm tra ngay.",), daemon=True).start()
+        else:
+            fall_counter = max(0, fall_counter - 1)
+
+    cv2.rectangle(img, (0, 0), (225, 130), (245, 117, 16), -1)
+    cv2.putText(img, "Fall Counter",     (15,  12), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0),       1, cv2.LINE_AA)
+    cv2.putText(img, str(fall_counter),  (10,  65), cv2.FONT_HERSHEY_SIMPLEX, 2.0, (255, 255, 255), 2, cv2.LINE_AA)
+    cv2.putText(img, body_angle,         (10, 110), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
+    cv2.putText(img, status,             (10, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0),     2, cv2.LINE_AA)
+
+    _, jpeg = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 65])
+    return jpeg.tobytes(), is_falling
+
+# ── Background AI worker ──────────────────────────────────────────────────────
 async def ai_inference_worker():
     global latest_frame
     while True:
         try:
-            # Get frame from queue
-            img_bytes, pi_ws = await frame_queue.get()
-            # Run Heavy AI logic in thread so event loop doesn't block
-            processed_bytes, is_falling = await asyncio.to_thread(process_frame, img_bytes)
-            
-            if processed_bytes:
-                latest_frame = processed_bytes
-                
-                # Send alert to Pi
-                if is_falling and pi_ws:
-                    try:
-                        await pi_ws.send_json({"event": "FALL"})
-                    except Exception as e:
-                        print(f"Error sending to Pi: {e}")
-                        
-                # Broadcast to Web UI via WebSockets
-                if web_clients:
-                    b64_img = base64.b64encode(processed_bytes).decode('utf-8')
-                    msg = json.dumps({"image": b64_img})
-                    dead_clients = set()
-                    for web_ws in web_clients:
-                        try:
-                            await web_ws.send_text(msg)
-                        except:
-                            dead_clients.add(web_ws)
-                    for d in dead_clients:
-                        web_clients.discard(d)
+            img_bytes, pi_ws      = await frame_queue.get()
+            processed, is_falling = await asyncio.to_thread(process_frame, img_bytes)
+            if not processed:
+                continue
+
+            latest_frame = processed
+
+            if is_falling and pi_ws:
+                try:
+                    await pi_ws.send_json({"event": "FALL"})
+                except Exception as e:
+                    print(f"[WS] Send to Pi failed: {e}")
+
+            if web_clients:
+                msg  = json.dumps({"image": base64.b64encode(processed).decode()})
+                dead = set()
+                for ws in web_clients:
+                    try:    await ws.send_text(msg)
+                    except: dead.add(ws)
+                web_clients -= dead
         except Exception as e:
-            print(f"AI Worker Crash Guard: {e}")
+            print(f"[WORKER] {e}")
 
 @app.on_event("startup")
 async def startup_event():
     asyncio.create_task(ai_inference_worker())
 
-# ---------- WEBSOCKET ENDPOINTS ----------
+# ── WebSocket endpoints ───────────────────────────────────────────────────────
 @app.websocket("/ws/pi")
 async def ws_pi(websocket: WebSocket):
     await websocket.accept()
     try:
         while True:
             data = await websocket.receive_bytes()
-            # Drop frame policy
             if frame_queue.full():
                 try: frame_queue.get_nowait()
                 except asyncio.QueueEmpty: pass
             await frame_queue.put((data, websocket))
     except WebSocketDisconnect:
-        print("Pi disconnected")
+        print("[WS] Pi disconnected")
 
 @app.websocket("/ws/web")
 async def ws_web(websocket: WebSocket):
@@ -179,29 +198,33 @@ async def ws_web(websocket: WebSocket):
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
-        web_clients.remove(websocket)
+        web_clients.discard(websocket)
 
-# HTML pages and metrics (Same as before)
-@app.get("/", response_class=HTMLResponse)
-async def index(): return open('templates/index.html', encoding='utf-8').read()
+# ── HTTP endpoints ────────────────────────────────────────────────────────────
+def _html(path: str) -> str:
+    return open(path, encoding="utf-8").read()
 
-@app.get("/login", response_class=HTMLResponse)
-async def login_page(): return open('templates/login.html', encoding='utf-8').read()
+@app.get("/",          response_class=HTMLResponse)
+async def index():     return _html("templates/index.html")
 
-@app.get("/camera", response_class=HTMLResponse)
-async def camera_page(): return open('templates/camera.html', encoding='utf-8').read()
+@app.get("/login",     response_class=HTMLResponse)
+async def login():     return _html("templates/login.html")
 
-@app.get("/chart", response_class=HTMLResponse)
-async def chart(): return open('templates/chart.html', encoding='utf-8').read()
+@app.get("/camera",    response_class=HTMLResponse)
+async def camera():    return _html("templates/camera.html")
+
+@app.get("/chart",     response_class=HTMLResponse)
+async def chart():     return _html("templates/chart.html")
 
 @app.get("/fallchart", response_class=HTMLResponse)
-async def fallchart(): return open('templates/fallchart.html', encoding='utf-8').read()
+async def fallchart(): return _html("templates/fallchart.html")
 
 @app.get("/trigger_feed")
 async def trigger_feed():
-    if fall_frame: return StreamingResponse(BytesIO(fall_frame), media_type="image/jpeg")
+    if fall_frame:
+        return StreamingResponse(BytesIO(fall_frame), media_type="image/jpeg")
     blank = np.zeros((200, 300, 3), dtype=np.uint8)
-    _, jpeg = cv2.imencode('.jpg', blank)
+    _, jpeg = cv2.imencode(".jpg", blank)
     return StreamingResponse(BytesIO(jpeg.tobytes()), media_type="image/jpeg")
 
 @app.post("/metrics")
@@ -210,7 +233,26 @@ async def receive_metrics(data: dict):
     return {"status": "received"}
 
 @app.get("/get_metrics")
-async def get_metrics(): return metrics_data
+async def get_metrics():
+    return metrics_data
+
+@app.get("/fall_stats")
+async def fall_stats():
+    now        = datetime.now()
+    today      = now.date()
+    this_month = (now.year, now.month)
+
+    hourly        = {f"{h:02d}:00": 0 for h in range(24)}
+    days_in_month = calendar.monthrange(*this_month)[1]
+    daily         = {str(d): 0 for d in range(1, days_in_month + 1)}
+
+    for ts in fall_log:
+        if ts.date() == today:
+            hourly[f"{ts.hour:02d}:00"] += 1
+        if (ts.year, ts.month) == this_month:
+            daily[str(ts.day)] += 1
+
+    return {"hourly": hourly, "daily": daily, "total": len(fall_log)}
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,112 +1,119 @@
-import cv2, requests, time, psutil, threading, os, json
-import websocket
+import cv2, json, os, threading, time
+import psutil, requests, websocket
 from dotenv import load_dotenv
 
 try:
     import RPi.GPIO as GPIO
     GPIO_AVAILABLE = True
 except ImportError:
-    print("RPi.GPIO not found. Running in Local mode.")
+    print("[GPIO] RPi.GPIO not found — running in local mode")
     GPIO_AVAILABLE = False
 
 load_dotenv()
-SERVER_URL = os.getenv("SERVER_URL", "http://127.0.0.1:8000")
-WS_URL = SERVER_URL.replace("http://", "ws://").replace("https://", "wss://") + "/ws/pi"
-TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
-TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
-BUZZER_PIN = 17 
+SERVER_URL   = os.getenv("SERVER_URL", "http://192.168.137.1:8000")
+WS_URL       = SERVER_URL.replace("http://", "ws://").replace("https://", "wss://") + "/ws/pi"
+CAMERA_INDEX = int(os.getenv("CAMERA_INDEX", "0"))
+
+print(f"[CONFIG] SERVER_URL    = {SERVER_URL}")
+print(f"[CONFIG] CAMERA_INDEX  = {CAMERA_INDEX}")
+
+# ── Buzzer ────────────────────────────────────────────────────────────────────
+BUZZER_PIN = 17
 if GPIO_AVAILABLE:
     GPIO.setwarnings(False)
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(BUZZER_PIN, GPIO.OUT)
     GPIO.output(BUZZER_PIN, GPIO.HIGH)
 
-CAMERA_RESOLUTION = (640, 480)
-CAMERA_FPS = 15
-
-# Global frame buffer
-latest_frame = None
-frame_lock = threading.Lock()
-
-def sound_buzzer(duration=1):
+def sound_buzzer(beeps=3, on_time=0.5, off_time=0.3):
     try:
-        if GPIO_AVAILABLE:
-            GPIO.output(BUZZER_PIN, GPIO.LOW)
-            time.sleep(duration)
-            GPIO.output(BUZZER_PIN, GPIO.HIGH)
-        else:
-            print(f"[LOCAL] *BUZZER SOUNDING* for {duration}s!")
-            time.sleep(duration)
+        for _ in range(beeps):
+            if GPIO_AVAILABLE:
+                GPIO.output(BUZZER_PIN, GPIO.LOW)
+                time.sleep(on_time)
+                GPIO.output(BUZZER_PIN, GPIO.HIGH)
+                time.sleep(off_time)
+            else:
+                print("[LOCAL] *BEEP*")
+                time.sleep(on_time + off_time)
     except Exception as e:
-        print(f"Buzzer error: {e}")
+        print(f"[BUZZER] Error: {e}")
 
-def send_telegram_message(message):
-    try:
-        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-        requests.post(url, data={'chat_id': TELEGRAM_CHAT_ID, 'text': message}, timeout=10)
-    except Exception as e: print(e)
+# ── Camera ────────────────────────────────────────────────────────────────────
+CAMERA_RESOLUTION = (640, 480)
+CAMERA_FPS        = 15
+
+latest_frame = None
+frame_lock   = threading.Lock()
 
 def capture_frames():
     global latest_frame
-    cap = cv2.VideoCapture(0)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_RESOLUTION[0])
+    cap = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_V4L2)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH,  CAMERA_RESOLUTION[0])
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_RESOLUTION[1])
-    
+    cap.set(cv2.CAP_PROP_FPS,          CAMERA_FPS)
     if not cap.isOpened():
-        print("Camera Error")
+        print("[CAMERA] Failed to open")
         return
-        
-    print("Camera Started")
+    print("[CAMERA] Started")
     while True:
         ret, frame = cap.read()
         if ret:
             with frame_lock:
                 latest_frame = frame
-        time.sleep(1/CAMERA_FPS)
 
+# ── Metrics ───────────────────────────────────────────────────────────────────
+def send_metrics():
+    while True:
+        try:
+            data = {"cpu": psutil.cpu_percent(interval=1), "memory": psutil.virtual_memory().percent}
+            requests.post(f"{SERVER_URL}/metrics", json=data, timeout=5)
+        except Exception as e:
+            print(f"[METRICS] Error: {e}")
+        time.sleep(2)
+
+# ── WebSocket ─────────────────────────────────────────────────────────────────
 def on_message(ws, message):
-    data = json.loads(message)
-    if data.get("event") == "FALL":
-        print("FALL DETECTED! Activating warning system.")
-        threading.Thread(target=sound_buzzer, args=(2,), daemon=True).start()
-        threading.Thread(target=send_telegram_message, args=("⚠️ ALERT: Fall detected!",), daemon=True).start()
+    if json.loads(message).get("event") == "FALL":
+        print("[FALL] Detected — activating buzzer")
+        threading.Thread(target=sound_buzzer, daemon=True).start()
 
 def on_error(ws, error):
-    print("WebSocket Error:", error)
+    print(f"[WS] Error: {error}")
 
-def on_close(ws, close_status_code, close_msg):
-    print("WebSocket Closed.")
+def on_close(ws, *_):
+    print("[WS] Closed")
 
 def stream_to_server():
     def push_frames(ws):
-        print("Bắt đầu gửi luồng video lên Server...")
+        print("[WS] Streaming frames...")
         while True:
-            frame = None
             with frame_lock:
-                if latest_frame is not None:
-                    frame = latest_frame.copy()
+                frame = latest_frame.copy() if latest_frame is not None else None
             if frame is not None:
-                _, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
+                _, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 60])
                 try:
-                    ws.send(buffer.tobytes(), opcode=websocket.ABNF.OPCODE_BINARY)
+                    ws.send(buf.tobytes(), opcode=websocket.ABNF.OPCODE_BINARY)
                 except websocket.WebSocketConnectionClosedException:
-                    print("Lỗi kết nối khi gửi frame")
+                    print("[WS] Connection closed")
                     break
-            time.sleep(1/CAMERA_FPS)
+            time.sleep(1 / CAMERA_FPS)
 
-    def on_open_handler(w):
-        print(f"Đã kết nối thành công tới Server: {WS_URL}!")
-        threading.Thread(target=push_frames, args=(w,), daemon=True).start()
+    def on_open(ws):
+        print(f"[WS] Connected to {WS_URL}")
+        threading.Thread(target=push_frames, args=(ws,), daemon=True).start()
 
-    print(f"Đang cố gắng kết nối tới WebSocket Server: {WS_URL} ...")
-    ws = websocket.WebSocketApp(WS_URL, on_message=on_message, on_error=on_error, on_close=on_close)
-    ws.on_open = on_open_handler
+    print(f"[WS] Connecting to {WS_URL} ...")
+    ws = websocket.WebSocketApp(WS_URL, on_open=on_open, on_message=on_message,
+                                on_error=on_error, on_close=on_close)
     ws.run_forever()
 
+# ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     threading.Thread(target=capture_frames, daemon=True).start()
+    threading.Thread(target=send_metrics,   daemon=True).start()
     while True:
         stream_to_server()
-        print("Reconnecting to server in 3s...")
+        print("[WS] Reconnecting in 3s...")
         time.sleep(3)

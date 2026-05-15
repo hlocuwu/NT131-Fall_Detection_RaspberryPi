@@ -13,3 +13,8 @@ __pycache__/
 
 # Fall events locally saved
 fall_events/
+
+# Test / evaluation scripts (not part of production)
+evaluate.py
+debug_video.py
+test_dataset.py
